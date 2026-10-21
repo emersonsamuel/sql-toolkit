@@ -1,0 +1,1753 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<title>SQL Toolkit</title>
+<meta name="description" content="SQL Toolkit: formatador de T-SQL, analisador de STATISTICS IO/TIME, plano de execução, deadlock, desparametrizador, anonimizador e comparativo de tuning. Tudo no navegador, sem enviar nem guardar dados.">
+<style>
+  :root{
+    --bg:#1b1a19; --card:#252423; --card2:#2f2e2d; --line:#3b3a39; --txt:#f3f2f1; --muted:#a19f9d;
+    --accent:#0078d4; --accent-ink:#ffffff; --accent-txt:#4cb4ff;
+    --good:#6ccb5f; --bad:#ff7b84; --warn:#ffb900; --info:#4cb4ff;
+    --info-bg:#0f6cbd; --bad-bg:#d13438; --warn-bg:#ffb900;
+    --before:#f7893b; --after:#6ccb5f;
+    --c1:#4cb4ff; --c2:#6ccb5f; --c3:#ffb900; --c4:#ff8a8f; --c5:#3dd6d6; --c6:#b79cf0; --c7:#f7893b;
+    --h-k:#6cb6ff; --h-f:#e58bd4; --h-s:#ff9a8b; --h-n:#b5e08a; --h-c:#7dc77d; --h-v:#ffd479; --h-i:#d0d0d0; --h-o:#a19f9d;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f3f2f1; --card:#ffffff; --card2:#f3f2f1; --line:#d2d0ce; --txt:#201f1e; --muted:#605e5c;
+      --accent:#0078d4; --accent-ink:#ffffff; --accent-txt:#0f6cbd; --good:#107c10; --bad:#c4314b; --warn:#986f0b; --info:#0f6cbd;
+      --before:#c75a00; --after:#107c10;
+      --c1:#0f6cbd; --c2:#107c10; --c3:#986f0b; --c4:#c4314b; --c5:#00727a; --c6:#6b4fa3; --c7:#c75a00;
+      --h-k:#0000ff; --h-f:#b5179e; --h-s:#c4301c; --h-n:#2d7d00; --h-c:#008000; --h-v:#8a5a00; --h-i:#3b3a39; --h-o:#605e5c; }
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  a{color:inherit}
+  header.top{border-bottom:1px solid var(--line);background:var(--card);box-shadow:0 1px 0 rgba(0,0,0,.04)}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 16px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0}
+  .brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:800;font-size:1.25rem;letter-spacing:.01em}
+  .brand small{font-weight:500;font-size:.8rem;color:var(--muted)}
+  .brand svg{width:34px;height:34px;display:block}
+  main.wrap{padding-top:26px;padding-bottom:56px}
+  h1{font-size:1.55rem;margin:0 0 4px}
+  .lead{color:var(--muted);margin:0 0 22px;max-width:70ch}
+  button,.btn{padding:10px 18px;border-radius:4px;border:0;font:inherit;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block}
+  .primary{background:var(--accent);color:var(--accent-ink)}
+  .ghost{background:transparent;color:var(--txt);border:1px solid var(--line)}
+  button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  section.page{display:none} section.page.on{display:block}
+
+  /* tela inicial */
+  .hero{padding:22px 0 8px}
+  .hero h1{font-size:2rem}
+  .group{margin-top:26px}
+  .group > h2{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .group > h2::after{content:"";flex:1;height:1px;background:var(--line)}
+  .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:760px){.tiles{grid-template-columns:1fr}}
+  .tile{position:relative;display:flex;flex-direction:column;gap:8px;background:var(--card);border:1px solid var(--line);border-top:3px solid var(--c);border-radius:8px;padding:18px;text-decoration:none;transition:transform .12s,box-shadow .12s,border-color .12s}
+  .tile:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.18);border-color:var(--c)}
+  .tile .ic{width:44px;height:44px;border-radius:8px;background:color-mix(in srgb,var(--c) 16%,transparent);display:grid;place-items:center;color:var(--c)}
+  .tile .ic svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .tile b{font-size:1.05rem}
+  .tile span.d{color:var(--muted);font-size:.88rem}
+  .tile .go{margin-top:auto;padding-top:4px;font-size:.85rem;font-weight:600;color:var(--c)}
+  .tile.wide{grid-column:1/-1;flex-direction:row;align-items:center;gap:16px}
+  .tile.wide .tx{display:flex;flex-direction:column;gap:2px;flex:1}
+  .tile.wide .go{margin:0;padding:0;white-space:nowrap}
+  @media(max-width:520px){.tile.wide{flex-wrap:wrap}}
+  .privacy{margin-top:44px;border:1px dashed var(--line);border-radius:12px;padding:12px 16px;color:var(--muted);font-size:.9rem}
+
+  /* ferramentas */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:18px;margin-bottom:16px}
+  h2{font-size:.85rem;margin:0 0 12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  h3{font-size:1rem;margin:0 0 8px}
+  label{display:block;font-size:.85rem;color:var(--muted);margin-bottom:4px}
+  input,select,textarea{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--txt);font:inherit}
+  input[type=checkbox]{width:auto;margin-right:6px}
+  textarea{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.85rem;line-height:1.45;min-height:260px;resize:vertical;white-space:pre;overflow:auto}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:760px){.g2,.g4{grid-template-columns:1fr 1fr}}
+  @media(max-width:520px){.g2,.g4{grid-template-columns:1fr}}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+  .opts{display:flex;gap:18px;flex-wrap:wrap;align-items:end;margin-bottom:12px}
+  .opts > div{min-width:170px}
+  .chk{display:flex;align-items:center;font-size:.9rem;color:var(--txt);margin:0}
+  .err{color:var(--bad);margin:10px 0 0;min-height:1.2em}
+  .note{font-size:.82rem;color:var(--muted);margin:8px 0 0}
+  code{background:var(--card2);padding:1px 5px;border-radius:4px;font-size:.85em}
+  .drop{border:2px dashed var(--line);border-radius:12px;transition:border-color .12s}
+  .drop.over{border-color:var(--accent)}
+  .stat{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--card)}
+  .stat b{display:block;font-size:1.3rem}
+  .stat span{font-size:.8rem;color:var(--muted)}
+  table{width:100%;border-collapse:collapse;font-size:.88rem}
+  th,td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:top}
+  th:first-child,td:first-child{text-align:left}
+  td.l,th.l{text-align:left}
+  th{color:var(--muted);font-weight:600;font-size:.74rem;text-transform:uppercase;letter-spacing:.04em}
+  .scroll{overflow-x:auto}
+  .pbar{display:inline-block;vertical-align:middle;width:70px;height:8px;border-radius:4px;background:var(--line);margin-left:8px;overflow:hidden}
+  .pbar i{display:block;height:100%;background:var(--accent)}
+  ul.ins{margin:0;padding-left:20px} ul.ins li{margin:6px 0}
+  .metric{border-top:1px solid var(--line);padding:16px 0}
+  .metric:first-of-type{border-top:0;padding-top:0}
+  .mhead{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+  .mname{font-weight:600}
+  .pct{font-size:1.5rem;font-weight:700}
+  .pct.good{color:var(--good)} .pct.bad{color:var(--bad)} .pct.neutral{color:var(--muted)}
+  .bar{height:12px;border-radius:6px;background:var(--line);overflow:hidden;margin:4px 0}
+  .bar > span{display:block;height:100%;border-radius:6px;transition:width .5s}
+  .bar.b > span{background:var(--before)} .bar.a > span{background:var(--after)}
+  .vals{display:flex;justify-content:space-between;font-size:.85rem;color:var(--muted)}
+  .before h2{color:var(--before)} .after h2{color:var(--after)}
+  pre.sum,pre.sql{white-space:pre-wrap;word-break:break-word;border:1px dashed var(--line);border-radius:8px;padding:12px;margin:0 0 12px;font-size:.88rem}
+  pre.sql{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.8rem;background:var(--card2);border-style:solid;max-height:260px;overflow:auto}
+  details{margin-bottom:12px}
+  summary{cursor:pointer;font-weight:600}
+  .f{list-style:none;margin:8px 0;padding:8px 10px;border-radius:8px;background:var(--card2);border-left:4px solid var(--info)}
+  .f.sev-alto{border-left-color:var(--bad)} .f.sev-medio{border-left-color:var(--warn)}
+  ul.fl{margin:0;padding:0}
+  .badge{display:inline-block;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:1px 7px;border-radius:999px;margin-right:6px;background:var(--info-bg);color:#fff}
+  .sev-alto .badge{background:var(--bad-bg)} .sev-medio .badge{background:var(--warn-bg);color:#201f1e}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
+  .chip{border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:.8rem;color:var(--muted)}
+  .chip b{color:var(--txt)}
+  .metric:first-of-type{border-top:0}
+  .hint{color:var(--muted);font-size:.9rem}
+  #cmpResult{display:none}
+  .tree td.l{white-space:nowrap}
+  .optgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:6px 18px;margin:10px 0 16px}
+  .optgrid .chk{margin:0}
+  pre.code{margin:0;min-height:260px;max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font:.85rem/1.45 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:4;white-space:pre;color:var(--h-i)}
+  pre.code[hidden]{display:none}
+  .h-k{color:var(--h-k);font-weight:600}.h-f{color:var(--h-f)}.h-s{color:var(--h-s)}.h-n{color:var(--h-n)}.h-c{color:var(--h-c);font-style:italic}.h-v{color:var(--h-v)}.h-i{color:var(--h-i)}.h-o{color:var(--h-o)}
+  .own{display:inline-block;height:6px;border-radius:3px;background:var(--accent);vertical-align:middle;margin-right:6px}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap topbar">
+    <a class="brand" href="#inicio" aria-label="SQL Toolkit — início">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="var(--accent)"/><ellipse cx="16" cy="10" rx="8" ry="3.2" fill="none" stroke="var(--accent-ink)" stroke-width="2"/><path d="M8 10v12c0 1.8 3.6 3.2 8 3.2s8-1.4 8-3.2V10M8 16c0 1.8 3.6 3.2 8 3.2s8-1.4 8-3.2" fill="none" stroke="var(--accent-ink)" stroke-width="2"/></svg>
+      <span>SQL Toolkit <small>(By Emerson Carlos)</small></span>
+    </a>
+    <a class="btn ghost" id="homeBtn" href="#inicio" style="display:none">← Início</a>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ================= INÍCIO ================= -->
+  <section class="page on" id="p-inicio">
+    <div class="hero">
+      <h1>Seu kit de ferramentas para SQL Server</h1>
+      <p class="lead">Formate queries, leia STATISTICS IO/TIME, investigue planos e deadlocks, desparametrize, anonimize e compare o antes/depois do tuning. Tudo em uma página, sem instalar nada.</p>
+    </div>
+    <div id="tiles"></div>
+    <div class="privacy"><b>Privacidade:</b> tudo roda no seu navegador. Nada é enviado para servidor nenhum e nada é guardado: ao fechar ou recarregar a página, o que você colou some. Funciona offline se você salvar este arquivo e abri-lo no computador.</div>
+  </section>
+
+  <!-- ================= FORMATADOR ================= -->
+  <section class="page" id="p-formatador">
+    <h1>Formatador SQL</h1>
+    <p class="lead">Cole uma query bagunçada e receba o T-SQL organizado. Ajuste caixa das palavras-chave, indentação, vírgulas, CASE, IN, BETWEEN, JOINs e mais, ou minifique e colora o resultado.</p>
+    <div class="card">
+      <div class="opts">
+        <div><label for="f_kw">Palavras-chave</label>
+          <select id="f_kw"><option value="keep" selected>Manter como está</option><option value="upper">MAIÚSCULAS</option><option value="lower">minúsculas</option></select></div>
+        <div><label for="f_ind">Indentação</label>
+          <select id="f_ind"><option value="tab" selected>Tab</option><option value="2">2 espaços</option><option value="3">3 espaços</option><option value="4">4 espaços</option><option value="8">8 espaços</option></select></div>
+        <div><label for="f_stm">Quebras entre instruções</label>
+          <select id="f_stm"><option value="1">Nenhuma linha em branco</option><option value="2" selected>1 linha em branco</option><option value="3">2 linhas em branco</option></select></div>
+        <div><label for="f_cls">Quebras entre cláusulas</label>
+          <select id="f_cls"><option value="1" selected>Nenhuma linha em branco</option><option value="2">1 linha em branco</option></select></div>
+      </div>
+      <details open><summary>Opções de estilo</summary>
+      <div class="optgrid">
+        <label class="chk"><input type="checkbox" id="f_commas" checked>Um item por linha (SELECT, GROUP BY, ORDER BY, SET...)</label>
+        <label class="chk"><input type="checkbox" id="f_trail" checked>Vírgula no fim da linha (desmarcado = vírgula antes)</label>
+        <label class="chk"><input type="checkbox" id="f_spc" checked>Espaço depois da vírgula</label>
+        <label class="chk"><input type="checkbox" id="f_bool" checked>Quebrar linha em AND / OR</label>
+        <label class="chk"><input type="checkbox" id="f_case" checked>Expandir CASE (WHEN/ELSE em linhas)</label>
+        <label class="chk"><input type="checkbox" id="f_btw" checked>Expandir BETWEEN</label>
+        <label class="chk"><input type="checkbox" id="f_in2" checked>Expandir lista do IN (...)</label>
+        <label class="chk"><input type="checkbox" id="f_on" checked>ON em linha própria</label>
+        <label class="chk"><input type="checkbox" id="f_wh">Primeira condição do WHERE em nova linha</label>
+        <label class="chk"><input type="checkbox" id="f_std">Padronizar (JOIN→INNER JOIN, EXEC→EXECUTE...)</label>
+      </div></details>
+      <div class="grid g2">
+        <div><label for="f_in">Query original</label><textarea id="f_in" spellcheck="false" placeholder="select a,b from t where x=1 ..."></textarea></div>
+        <div><label for="f_out">Query formatada</label><textarea id="f_out" spellcheck="false" readonly></textarea><pre class="code" id="f_hl" hidden></pre></div>
+      </div>
+      <div class="actions">
+        <button class="primary" id="f_go" type="button">Formatar</button>
+        <button class="ghost" id="f_min" type="button">Minificar</button>
+        <button class="ghost" id="f_copy" type="button">Copiar resultado</button>
+        <button class="ghost" id="f_ex" type="button">Exemplo</button>
+        <button class="ghost" id="f_clear" type="button">Limpar</button>
+        <label class="chk" style="margin-left:8px"><input type="checkbox" id="f_color">Colorir resultado</label>
+      </div>
+      <p class="note">Cobre SELECT / INSERT / UPDATE / DELETE, CTEs, JOINs, subqueries, CASE, IF/BEGIN/END, DECLARE e lotes com GO. Strings e comentários são preservados. Confira o resultado antes de usar em produção.</p>
+    </div>
+  </section>
+
+  <!-- ================= ANALISADOR IO/TIME ================= -->
+  <section class="page" id="p-io">
+    <h1>Analisador IO / TIME</h1>
+    <p class="lead">Cole a saída da aba Mensagens do SSMS (com <code>SET STATISTICS IO, TIME ON</code>) e veja os totais e o peso de cada tabela.</p>
+    <div class="card">
+      <textarea id="st_in" spellcheck="false" placeholder="Cole aqui o conteúdo da aba Mensagens do SSMS..."></textarea>
+      <div class="actions">
+        <button class="primary" id="st_go" type="button">Analisar</button>
+        <button class="ghost" id="st_ex" type="button">Exemplo</button>
+        <button class="ghost" id="st_clear" type="button">Limpar</button>
+      </div>
+      <p class="note">Funciona com a saída em inglês (<code>Table '...'. Scan count ...</code> e <code>CPU time = ... ms</code>). Se houver várias execuções coladas, os valores são somados.</p>
+    </div>
+    <div id="st_out"></div>
+  </section>
+
+  <!-- ================= PLANO ================= -->
+  <section class="page" id="p-plano">
+    <h1>Plano de execução (.sqlplan)</h1>
+    <p class="lead">Abra um arquivo <code>.sqlplan</code>, arraste-o para a caixa ou cole o XML do plano. A ferramenta lista alertas, índices ausentes e os operadores mais caros.</p>
+    <div class="card">
+      <div class="drop" id="pl_drop"><textarea id="pl_in" spellcheck="false" placeholder="Cole o XML do plano aqui, ou arraste o arquivo .sqlplan para esta caixa..." style="border:0"></textarea></div>
+      <div class="actions">
+        <button class="primary" id="pl_go" type="button">Analisar</button>
+        <button class="ghost" id="pl_open" type="button">Abrir arquivo…</button>
+        <button class="ghost" id="pl_ex" type="button">Exemplo</button>
+        <button class="ghost" id="pl_clear" type="button">Limpar</button>
+        <input type="file" id="pl_file" accept=".sqlplan,.xml,.txt" hidden>
+      </div>
+      <p class="note">O arquivo é lido localmente pelo navegador. No SSMS: botão direito no plano → “Save Execution Plan As…”. Custos dos operadores são estimativas do otimizador (unidades internas, não segundos).</p>
+    </div>
+    <div id="pl_out"></div>
+  </section>
+
+  <!-- ================= DEADLOCK ================= -->
+  <section class="page" id="p-deadlock">
+    <h1>Deadlock</h1>
+    <p class="lead">Cole o XML do deadlock graph (<code>xml_deadlock_report</code>, da sessão <code>system_health</code> ou de um arquivo <code>.xdl</code>) e veja quem foi a vítima, quais objetos estavam envolvidos e por que o impasse aconteceu.</p>
+    <div class="card">
+      <div class="drop" id="dl_drop"><textarea id="dl_in" spellcheck="false" placeholder="Cole o XML do deadlock aqui, ou arraste o arquivo .xdl / .xml..." style="border:0"></textarea></div>
+      <div class="actions">
+        <button class="primary" id="dl_go" type="button">Analisar</button>
+        <button class="ghost" id="dl_open" type="button">Abrir arquivo…</button>
+        <button class="ghost" id="dl_ex" type="button">Exemplo</button>
+        <button class="ghost" id="dl_clear" type="button">Limpar</button>
+        <input type="file" id="dl_file" accept=".xdl,.xml,.txt" hidden>
+      </div>
+    </div>
+    <div id="dl_out"></div>
+  </section>
+
+  <!-- ================= DESPARAMETRIZADOR ================= -->
+  <section class="page" id="p-desparametrizador">
+    <h1>Desparametrizador</h1>
+    <p class="lead">Transforma uma chamada <code>sp_executesql</code> (do Profiler, Extended Events ou Query Store) em uma query pronta para rodar no SSMS, com os <code>DECLARE</code> dos parâmetros.</p>
+    <div class="card">
+      <div class="opts"><label class="chk"><input type="checkbox" id="up_fmt" checked> Formatar a query do resultado</label></div>
+      <div class="grid g2">
+        <div><label for="up_in">Chamada sp_executesql</label><textarea id="up_in" spellcheck="false" placeholder="exec sp_executesql N'SELECT ... WHERE x = @p1', N'@p1 int', @p1 = 10"></textarea></div>
+        <div><label for="up_out">Query executável</label><textarea id="up_out" spellcheck="false" readonly></textarea></div>
+      </div>
+      <div class="actions">
+        <button class="primary" id="up_go" type="button">Desparametrizar</button>
+        <button class="ghost" id="up_copy" type="button">Copiar resultado</button>
+        <button class="ghost" id="up_ex" type="button">Exemplo</button>
+        <button class="ghost" id="up_clear" type="button">Limpar</button>
+      </div>
+      <p class="err" id="up_err" role="alert"></p>
+      <p class="note">Converte a primeira chamada encontrada. Aceita as formas posicional e com <code>@stmt=</code> / <code>@params=</code>.</p>
+    </div>
+  </section>
+
+  <!-- ================= ANONIMIZADOR ================= -->
+  <section class="page" id="p-anonimizador">
+    <h1>Anonimizador</h1>
+    <p class="lead">Troque nomes de tabelas, colunas, bancos e valores por nomes genéricos antes de compartilhar uma query em post, fórum ou suporte.</p>
+    <div class="card">
+      <div class="opts">
+        <label class="chk"><input type="checkbox" id="an_idents" checked> Nomes de objetos (tabelas, colunas, aliases, bancos)</label>
+        <label class="chk"><input type="checkbox" id="an_vars" checked> Variáveis e parâmetros (@x)</label>
+        <label class="chk"><input type="checkbox" id="an_strings" checked> Textos entre aspas</label>
+        <label class="chk"><input type="checkbox" id="an_nums"> Números</label>
+        <label class="chk"><input type="checkbox" id="an_comments" checked> Remover comentários</label>
+        <label class="chk"><input type="checkbox" id="an_dbo" checked> Manter <code>dbo</code> e <code>sys</code></label>
+        <label class="chk"><input type="checkbox" id="an_fmt"> Formatar depois</label>
+      </div>
+      <div class="grid g2">
+        <div><label for="an_in">Query original</label><textarea id="an_in" spellcheck="false"></textarea></div>
+        <div><label for="an_out">Query anonimizada</label><textarea id="an_out" spellcheck="false" readonly></textarea></div>
+      </div>
+      <div class="actions">
+        <button class="primary" id="an_go" type="button">Anonimizar</button>
+        <button class="ghost" id="an_copy" type="button">Copiar resultado</button>
+        <button class="ghost" id="an_ex" type="button">Exemplo</button>
+        <button class="ghost" id="an_clear" type="button">Limpar</button>
+      </div>
+      <details id="an_map_wrap" style="display:none"><summary>Mapa de substituição (só aparece aqui, não é copiado)</summary><div class="scroll"><table id="an_map"></table></div></details>
+      <p class="note">Revise o resultado antes de publicar: a ferramenta ajuda, mas não garante que nenhum dado sensível sobrou (por exemplo, dentro de comentários ou de strings grandes).</p>
+    </div>
+  </section>
+
+  <!-- ================= COMPARATIVO ================= -->
+  <section class="page" id="p-comparativo">
+    <h1>Comparativo antes/depois</h1>
+    <p class="lead">Mostre o ganho do tuning em duração, CPU e leituras lógicas. Você pode digitar os números ou colar as saídas do SSMS.</p>
+    <details class="card">
+      <summary>Preencher a partir da saída do SSMS (opcional)</summary>
+      <div class="grid g2" style="margin-top:12px">
+        <div><label for="cp_b_txt">Saída ANTES</label><textarea id="cp_b_txt" spellcheck="false" style="min-height:140px"></textarea></div>
+        <div><label for="cp_a_txt">Saída DEPOIS</label><textarea id="cp_a_txt" spellcheck="false" style="min-height:140px"></textarea></div>
+      </div>
+      <div class="actions"><button class="ghost" id="cp_fill" type="button">Preencher os campos</button></div>
+      <p class="err" id="cp_fill_err" role="alert"></p>
+    </details>
+    <div class="card">
+      <h2>Informações da query</h2>
+      <div class="grid g2">
+        <div><label for="nome">Nome da query</label><input id="nome" type="text" placeholder="ex.: Relatório de vendas mensal"></div>
+        <div><label for="unidade">Unidade de tempo (duração e CPU)</label>
+          <select id="unidade"><option value="ms">milissegundos (ms)</option><option value="s">segundos (s)</option></select></div>
+      </div>
+    </div>
+    <div class="grid g2">
+      <div class="card before"><h2>Antes do tuning</h2><div class="grid">
+        <div><label for="b_dur">Duração total</label><input id="b_dur" type="number" min="0" step="any" inputmode="decimal"></div>
+        <div><label for="b_cpu">Tempo de CPU</label><input id="b_cpu" type="number" min="0" step="any" inputmode="decimal"></div>
+        <div><label for="b_io">Leituras lógicas</label><input id="b_io" type="number" min="0" step="any" inputmode="decimal"></div>
+      </div></div>
+      <div class="card after"><h2>Após o tuning</h2><div class="grid">
+        <div><label for="a_dur">Duração total</label><input id="a_dur" type="number" min="0" step="any" inputmode="decimal"></div>
+        <div><label for="a_cpu">Tempo de CPU</label><input id="a_cpu" type="number" min="0" step="any" inputmode="decimal"></div>
+        <div><label for="a_io">Leituras lógicas</label><input id="a_io" type="number" min="0" step="any" inputmode="decimal"></div>
+      </div></div>
+    </div>
+    <div class="actions">
+      <button class="primary" id="calc" type="button">Calcular</button>
+      <button class="ghost" id="limpar" type="button">Limpar</button>
+    </div>
+    <p class="err" id="err" role="alert"></p>
+    <section id="cmpResult" class="card" aria-live="polite">
+      <h2 id="rtitle">Resultado</h2>
+      <div id="metrics"></div>
+      <div id="cmpTables"></div>
+      <h2 style="margin-top:20px">Resumo para copiar</h2>
+      <pre class="sum" id="resumo"></pre>
+      <button class="ghost" id="copiar" type="button">Copiar resumo</button>
+      <p class="note">Redução % = (antes − depois) ÷ antes × 100. Ganho em “x” = antes ÷ depois.</p>
+    </section>
+  </section>
+
+</main>
+
+
+<!-- ======================= NÚCLEO (lógica pura, sem DOM) ======================= -->
+<script id="core">
+/* ====================== AMOSTRAS ====================== */
+var SAMPLE_STATS = [
+  " SQL Server Execution Times:",
+  "   CPU time = 0 ms,  elapsed time = 0 ms.",
+  "SQL Server parse and compile time: ",
+  "   CPU time = 0 ms, elapsed time = 0 ms.",
+  "",
+  "(480000 rows affected)",
+  "Table 'OrderLines'. Scan count 3, logical reads 5120, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.",
+  "Table 'Products'. Scan count 3, logical reads 4, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.",
+  "Table 'Orders'. Scan count 3, logical reads 61, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.",
+  "Table 'Customers'. Scan count 3, logical reads 18, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.",
+  "Table 'Worktable'. Scan count 0, logical reads 0, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.",
+  "",
+  "(1 row affected)",
+  "",
+  " SQL Server Execution Times:",
+  "   CPU time = 1100 ms,  elapsed time = 4210 ms.",
+  "SQL Server parse and compile time: ",
+  "   CPU time = 0 ms, elapsed time = 0 ms.",
+  "",
+  " SQL Server Execution Times:",
+  "   CPU time = 0 ms,  elapsed time = 0 ms.",
+  "",
+  "Completion time: 2026-01-15T10:02:41.5120000-03:00"
+].join("\n");
+
+var SAMPLE_SQL = "select p.Name, c.CustomerName, sum(i.Quantity*i.Price) as Total, case when sum(i.Quantity)>10 then 'high' else 'low' end as Band from dbo.OrderLines i inner join dbo.Orders pe on pe.Id=i.OrderId left join dbo.Customers c on c.Id=pe.CustomerId and c.IsActive=1 join dbo.Products p on p.Id=i.ProductId where pe.OrderDate between '2026-01-01' and '2026-03-31' and c.Id in (select CustomerId from dbo.VipCustomers where Level>=2) group by p.Name, c.CustomerName having sum(i.Quantity)>0 order by Total desc;";
+
+var SAMPLE_SP = "exec sp_executesql N'SELECT c.Name, c.City FROM dbo.Customers c WHERE c.City = @city AND c.Id > @minId AND c.Notes LIKE @notes',N'@city nvarchar(50),@minId int,@notes varchar(100)',@city=N'Sample City',@minId=1000,@notes='%vip%'";
+
+var SAMPLE_DEADLOCK = [
+  '<deadlock>',
+  ' <victim-list><victimProcess id="process2a1c8"/></victim-list>',
+  ' <process-list>',
+  '  <process id="process2a1c8" taskpriority="0" logused="256" waitresource="KEY: 7:72057594043432960 (a1b2c3d4e5f6)" waittime="3125" transactionname="user_transaction" lockMode="S" status="suspended" spid="58" sbid="0" ecid="0" priority="0" trancount="1" lastbatchstarted="2026-10-20T18:15:10.100" clientapp="Demo.Api" hostname="APP01" loginname="app_user" isolationlevel="read committed (2)" currentdb="7" currentdbname="DemoDB">',
+  '   <executionStack><frame procname="DemoDB.dbo.usp_UpdateStock" line="22" stmtstart="1020" stmtend="1400" sqlhandle="0x03">UPDATE dbo.Products SET Stock = Stock - @q WHERE Id = @id</frame></executionStack>',
+  '   <inputbuf>EXEC dbo.usp_UpdateStock @id = 10, @q = 2</inputbuf>',
+  '  </process>',
+  '  <process id="process3b7d4" taskpriority="0" logused="1024" waitresource="KEY: 7:72057594043498496 (9f8e7d6c5b4a)" waittime="2980" transactionname="user_transaction" lockMode="U" status="suspended" spid="61" sbid="0" ecid="0" priority="0" trancount="2" lastbatchstarted="2026-10-20T18:15:10.050" clientapp="Demo.Api" hostname="APP02" loginname="app_user" isolationlevel="read committed (2)" currentdb="7" currentdbname="DemoDB">',
+  '   <executionStack><frame procname="DemoDB.dbo.usp_CloseOrder" line="41" stmtstart="2200" stmtend="2600" sqlhandle="0x04">UPDATE dbo.OrderLines SET Status = 2 WHERE OrderId = @order</frame></executionStack>',
+  '   <inputbuf>EXEC dbo.usp_CloseOrder @order = 5521</inputbuf>',
+  '  </process>',
+  ' </process-list>',
+  ' <resource-list>',
+  '  <keylock hobtid="72057594043432960" dbid="7" objectname="DemoDB.dbo.Products" indexname="PK_Products" id="lock1a" mode="X" associatedObjectId="72057594043432960">',
+  '   <owner-list><owner id="process3b7d4" mode="X"/></owner-list>',
+  '   <waiter-list><waiter id="process2a1c8" mode="S" requestType="wait"/></waiter-list>',
+  '  </keylock>',
+  '  <keylock hobtid="72057594043498496" dbid="7" objectname="DemoDB.dbo.OrderLines" indexname="PK_OrderLines" id="lock2b" mode="X" associatedObjectId="72057594043498496">',
+  '   <owner-list><owner id="process2a1c8" mode="X"/></owner-list>',
+  '   <waiter-list><waiter id="process3b7d4" mode="U" requestType="wait"/></waiter-list>',
+  '  </keylock>',
+  ' </resource-list>',
+  '</deadlock>'
+].join("\n");
+
+var SAMPLE_PLAN = [
+  '<?xml version="1.0" encoding="utf-16"?>',
+  '<ShowPlanXML xmlns="http://schemas.microsoft.com/sqlserver/2004/07/showplan" Version="1.564" Build="16.0.1000.6">',
+  ' <BatchSequence><Batch><Statements>',
+  '  <StmtSimple StatementText="SELECT p.Name, SUM(i.Quantity) FROM dbo.OrderLines i JOIN dbo.Products p ON p.Id = i.ProductId WHERE i.Code = @c GROUP BY p.Name" StatementId="1" StatementCompId="3" StatementType="SELECT" StatementSubTreeCost="45.2" StatementEstRows="120" StatementOptmLevel="FULL" CardinalityEstimationModelVersion="160">',
+  '   <QueryPlan DegreeOfParallelism="4" CachedPlanSize="48" CompileTime="12" CompileCPU="11" CompileMemory="512">',
+  '    <MemoryGrantInfo SerialRequiredMemory="512" SerialDesiredMemory="1024" RequiredMemory="512" DesiredMemory="204800" RequestedMemory="204800" GrantWaitTime="0" GrantedMemory="204800" MaxUsedMemory="10240" MaxQueryMemory="800000"/>',
+  '    <Warnings><PlanAffectingConvert ConvertIssue="Seek Plan" Expression="CONVERT_IMPLICIT(nvarchar(50),[i].[Code],0)=[@c]"/></Warnings>',
+  '    <MissingIndexes><MissingIndexGroup Impact="72.5"><MissingIndex Database="[DemoDB]" Schema="[dbo]" Table="[OrderLines]">',
+  '      <ColumnGroup Usage="EQUALITY"><Column Name="[Code]" ColumnId="3"/></ColumnGroup>',
+  '      <ColumnGroup Usage="INCLUDE"><Column Name="[ProductId]" ColumnId="2"/><Column Name="[Quantity]" ColumnId="4"/></ColumnGroup>',
+  '    </MissingIndex></MissingIndexGroup></MissingIndexes>',
+  '    <RelOp NodeId="0" PhysicalOp="Parallelism" LogicalOp="Gather Streams" EstimateRows="120" EstimateIO="0" EstimateCPU="0.2" AvgRowSize="40" EstimatedTotalSubtreeCost="45.2" Parallel="true" EstimateRebinds="0" EstimateRewinds="0">',
+  '     <RunTimeInformation><RunTimeCountersPerThread Thread="0" ActualRows="118" ActualExecutions="1" ActualElapsedms="2310" ActualCPUms="0"/></RunTimeInformation>',
+  '     <Parallelism>',
+  '      <RelOp NodeId="1" PhysicalOp="Hash Match" LogicalOp="Aggregate" EstimateRows="120" EstimateIO="0" EstimateCPU="3.5" AvgRowSize="40" EstimatedTotalSubtreeCost="45.0" Parallel="true" EstimateRebinds="0" EstimateRewinds="0">',
+  '       <Warnings><HashSpillDetails GrantedMemoryKb="1024" UsedMemoryKb="1024" WritesToTempDb="512" ReadsFromTempDb="512"/></Warnings>',
+  '       <RunTimeInformation><RunTimeCountersPerThread Thread="2" ActualRows="60" ActualExecutions="1" ActualElapsedms="2200" ActualCPUms="2100"/><RunTimeCountersPerThread Thread="1" ActualRows="58" ActualExecutions="1" ActualElapsedms="2150" ActualCPUms="2050"/></RunTimeInformation>',
+  '       <Hash>',
+  '        <RelOp NodeId="2" PhysicalOp="Hash Match" LogicalOp="Inner Join" EstimateRows="20000" EstimateIO="0" EstimateCPU="4.0" AvgRowSize="30" EstimatedTotalSubtreeCost="41.0" Parallel="true" EstimateRebinds="0" EstimateRewinds="0">',
+  '         <RunTimeInformation><RunTimeCountersPerThread Thread="2" ActualRows="250000" ActualExecutions="1" ActualElapsedms="2000" ActualCPUms="1900"/><RunTimeCountersPerThread Thread="1" ActualRows="230000" ActualExecutions="1" ActualElapsedms="1950" ActualCPUms="1850"/></RunTimeInformation>',
+  '         <Hash>',
+  '          <RelOp NodeId="3" PhysicalOp="Clustered Index Scan" LogicalOp="Clustered Index Scan" EstimateRows="20000" EstimateIO="30" EstimateCPU="5" AvgRowSize="20" EstimatedTotalSubtreeCost="35.0" TableCardinality="480000" Parallel="true" EstimateRebinds="0" EstimateRewinds="0">',
+  '           <RunTimeInformation><RunTimeCountersPerThread Thread="2" ActualRows="250000" ActualRowsRead="250000" ActualExecutions="1" ActualElapsedms="1500" ActualCPUms="900" ActualLogicalReads="2600"/><RunTimeCountersPerThread Thread="1" ActualRows="230000" ActualRowsRead="230000" ActualExecutions="1" ActualElapsedms="1450" ActualCPUms="850" ActualLogicalReads="2520"/></RunTimeInformation>',
+  '           <IndexScan Ordered="false"><Object Database="[DemoDB]" Schema="[dbo]" Table="[OrderLines]" Index="[PK_OrderLines]" IndexKind="Clustered"/></IndexScan>',
+  '          </RelOp>',
+  '          <RelOp NodeId="4" PhysicalOp="Nested Loops" LogicalOp="Inner Join" EstimateRows="1000" EstimateIO="0" EstimateCPU="0.5" AvgRowSize="40" EstimatedTotalSubtreeCost="3.2" Parallel="true" EstimateRebinds="0" EstimateRewinds="0">',
+  '           <NestedLoops>',
+  '            <RelOp NodeId="5" PhysicalOp="Index Seek" LogicalOp="Index Seek" EstimateRows="1000" EstimateIO="0.1" EstimateCPU="0.1" AvgRowSize="30" EstimatedTotalSubtreeCost="0.6" Parallel="true" EstimateRebinds="0" EstimateRewinds="0">',
+  '             <RunTimeInformation><RunTimeCountersPerThread Thread="1" ActualRows="1000" ActualExecutions="1" ActualElapsedms="3" ActualCPUms="3" ActualLogicalReads="8"/></RunTimeInformation>',
+  '             <IndexScan Ordered="true"><Object Database="[DemoDB]" Schema="[dbo]" Table="[Products]" Index="[IX_Products_Name]" IndexKind="NonClustered"/></IndexScan>',
+  '            </RelOp>',
+  '            <RelOp NodeId="6" PhysicalOp="Clustered Index Seek" LogicalOp="Clustered Index Seek" EstimateRows="1" EstimateIO="0.003" EstimateCPU="0.0001" AvgRowSize="30" EstimatedTotalSubtreeCost="2.5" Parallel="true" EstimateRebinds="999" EstimateRewinds="0">',
+  '             <RunTimeInformation><RunTimeCountersPerThread Thread="1" ActualRows="1000" ActualExecutions="1000" ActualElapsedms="40" ActualCPUms="38" ActualLogicalReads="3000"/></RunTimeInformation>',
+  '             <IndexScan Lookup="true" Ordered="true"><Object Database="[DemoDB]" Schema="[dbo]" Table="[Products]" Index="[PK_Products]" IndexKind="Clustered"/></IndexScan>',
+  '            </RelOp>',
+  '           </NestedLoops>',
+  '          </RelOp>',
+  '         </Hash>',
+  '        </RelOp>',
+  '       </Hash>',
+  '      </RelOp>',
+  '     </Parallelism>',
+  '    </RelOp>',
+  '    <ParameterList><ColumnReference Column="@c" ParameterDataType="varchar(50)" ParameterCompiledValue="(&apos;A1&apos;)" ParameterRuntimeValue="(&apos;ZZ9&apos;)"/></ParameterList>',
+  '   </QueryPlan>',
+  '  </StmtSimple>',
+  ' </Statements></Batch></BatchSequence>',
+  '</ShowPlanXML>'
+].join("\n");
+
+/* ====================== ANALISADOR STATISTICS IO / TIME ====================== */
+function parseStats(text){
+  var lines = String(text).split(/\r?\n/);
+  var tables = {}, order = [];
+  var cpu = 0, elapsed = 0, compCpu = 0, compEl = 0, execBlocks = 0;
+  var rows = [], mode = null, hasTime = false;
+  var LABELS = {
+    "scan count":"scan", "logical reads":"logical", "physical reads":"physical",
+    "page server reads":"pageServer", "read-ahead reads":"readAhead",
+    "page server read-ahead reads":"pageServerReadAhead",
+    "lob logical reads":"lobLogical", "lob physical reads":"lobPhysical",
+    "lob page server reads":"lobPageServer", "lob read-ahead reads":"lobReadAhead",
+    "lob page server read-ahead reads":"lobPageServerReadAhead",
+    "segment reads":"segmentReads", "segment skipped":"segmentSkipped"
+  };
+  function addTime(m){
+    hasTime = true;
+    if (mode === "compile"){ compCpu += +m[1]; compEl += +m[2]; }
+    else { cpu += +m[1]; elapsed += +m[2]; execBlocks++; }
+    mode = null;
+  }
+  var TIME_RE = /CPU time = (\d+) ms,\s*elapsed time = (\d+) ms/i;
+  for (var i = 0; i < lines.length; i++){
+    var line = lines[i].trim();
+    if (!line) continue;
+    var m;
+    if (/^SQL Server Execution Times:/i.test(line)){
+      mode = "exec";
+      if ((m = line.match(TIME_RE))) addTime(m);
+      continue;
+    }
+    if (/^SQL Server parse and compile time:/i.test(line)){
+      mode = "compile";
+      if ((m = line.match(TIME_RE))) addTime(m);
+      continue;
+    }
+    if ((m = line.match(TIME_RE))){ addTime(m); continue; }
+    if ((m = line.match(/^\((\d+) rows? affected\)/i))){ rows.push(+m[1]); continue; }
+    if ((m = line.match(/^Table '(.*)'\.\s+(Scan count.*)$/i))){
+      var name = m[1];
+      if (!tables[name]){
+        tables[name] = { name: name, scan:0, logical:0, physical:0, pageServer:0, readAhead:0,
+          pageServerReadAhead:0, lobLogical:0, lobPhysical:0, lobPageServer:0, lobReadAhead:0,
+          lobPageServerReadAhead:0, segmentReads:0, segmentSkipped:0 };
+        order.push(name);
+      }
+      var re = /([A-Za-z][A-Za-z -]*?)\s+(\d+)/g, pm;
+      while ((pm = re.exec(m[2]))){
+        var key = LABELS[pm[1].trim().toLowerCase()];
+        if (key) tables[name][key] += +pm[2];
+      }
+    }
+  }
+  var list = order.map(function(n){ return tables[n]; });
+  var totals = { scan:0, logical:0, physical:0, readAhead:0, lobLogical:0 };
+  list.forEach(function(t){
+    totals.scan += t.scan; totals.logical += t.logical; totals.physical += t.physical;
+    totals.readAhead += t.readAhead; totals.lobLogical += t.lobLogical;
+  });
+  list.sort(function(a, b){ return b.logical - a.logical; });
+  return { tables: list, totals: totals, cpu: cpu, elapsed: elapsed, compCpu: compCpu, compEl: compEl,
+           rows: rows, hasTime: hasTime, hasData: list.length > 0 || hasTime };
+}
+
+/* ====================== TOKENIZADOR / FORMATADOR T-SQL ====================== */
+var KW = new Set(("SELECT FROM WHERE GROUP BY ORDER HAVING JOIN INNER LEFT RIGHT FULL OUTER CROSS APPLY ON AS AND OR NOT IN EXISTS " +
+  "BETWEEN LIKE IS NULL UNION ALL DISTINCT TOP INTO INSERT UPDATE DELETE SET VALUES CREATE ALTER DROP TABLE VIEW INDEX PROCEDURE " +
+  "FUNCTION TRIGGER DECLARE BEGIN END IF ELSE WHILE CASE WHEN THEN EXEC EXECUTE RETURN WITH OPTION OVER PARTITION ASC DESC " +
+  "INTERSECT EXCEPT TRUNCATE USE PRINT PRIMARY FOREIGN REFERENCES CONSTRAINT DEFAULT UNIQUE CLUSTERED NONCLUSTERED TRAN " +
+  "TRANSACTION COMMIT ROLLBACK TRY CATCH MERGE USING PERCENT ANY SOME ESCAPE NOLOCK UPDLOCK ROWLOCK TABLOCK TABLOCKX HOLDLOCK READPAST RECOMPILE").split(" "));
+var TYPES = new Set("INT BIGINT SMALLINT TINYINT BIT DECIMAL NUMERIC FLOAT REAL MONEY VARCHAR NVARCHAR CHAR NCHAR DATETIME DATETIME2 SMALLDATETIME UNIQUEIDENTIFIER VARBINARY XML".split(" "));
+var FN = new Set(("COUNT SUM AVG MIN MAX ISNULL COALESCE NULLIF CAST CONVERT LEN SUBSTRING UPPER LOWER LTRIM RTRIM TRIM REPLACE " +
+  "GETDATE GETUTCDATE SYSDATETIME DATEADD DATEDIFF DATEPART DATENAME YEAR MONTH DAY FORMAT ROUND FLOOR CEILING ABS ROW_NUMBER " +
+  "RANK DENSE_RANK NTILE LAG LEAD STRING_AGG CONCAT CHARINDEX PATINDEX STUFF TRY_CAST TRY_CONVERT IIF EOMONTH NEWID OBJECT_ID " +
+  "SCOPE_IDENTITY").split(" "));
+var KEEP_EXTRA = new Set(("MAXDOP OPTIMIZE UNKNOWN OFFSET FETCH NEXT FIRST ROWS ONLY TIES TRUE FALSE DATE TIME DATETIMEOFFSET TEXT NTEXT IMAGE " +
+  "QUARTER DAYOFYEAR WEEK WEEKDAY HOUR MINUTE SECOND MILLISECOND DD MM YY YYYY MI SS MS DW DY HH QQ WK ROW RANGE UNBOUNDED PRECEDING FOLLOWING CURRENT " +
+  "DATEFROMPARTS SYSUTCDATETIME STRING_SPLIT OPENJSON JSON_VALUE JSON_QUERY ISJSON TRY_PARSE PARSE REVERSE REPLICATE SPACE UNICODE ASCII DATALENGTH " +
+  "POWER SQRT SIGN RAND CHECKSUM HASHBYTES NEWSEQUENTIALID SQL_VARIANT HIERARCHYID GEOGRAPHY GEOMETRY").split(" "));
+var SPB = new Set("IN AS ON AND OR NOT EXISTS WHERE WHEN THEN ELSE FROM JOIN HAVING VALUES SELECT SET UNION ALL ANY SOME BETWEEN LIKE IS CASE WITH INTO TOP APPLY DISTINCT OVER OPTION RETURN BY USING".split(" "));
+var JOINMOD = new Set("INNER LEFT RIGHT FULL CROSS OUTER".split(" "));
+var JOINNEXT = new Set("JOIN OUTER APPLY INNER".split(" "));
+var UNARY_AFTER = new Set("SELECT WHERE AND OR ON WHEN THEN ELSE BY HAVING SET IN NOT RETURN".split(" "));
+var LISTMODES = new Set("select group order set from values".split(" "));
+
+function tokenizeSQL(src){
+  var t = [], i = 0, n = src.length;
+  function push(tok, s, e){ tok.s = s; tok.e = e; t.push(tok); return tok; }
+  function readQuoted(start, q){
+    var j = start + 1;
+    while (j < n){
+      if (src[j] === q){ if (src[j+1] === q){ j += 2; continue; } break; }
+      j++;
+    }
+    return Math.min(j + 1, n);
+  }
+  while (i < n){
+    var c = src[i];
+    if (/\s/.test(c)){ i++; continue; }
+    if (c === "-" && src[i+1] === "-"){
+      var j = src.indexOf("\n", i); if (j < 0) j = n;
+      var raw = src.slice(i, j).replace(/\s+$/, "");
+      push({ k:"lc", v: raw }, i, i + raw.length); i = j; continue;
+    }
+    if (c === "/" && src[i+1] === "*"){
+      var e = src.indexOf("*/", i + 2); e = e < 0 ? n : e + 2;
+      push({ k:"bc", v: src.slice(i, e) }, i, e); i = e; continue;
+    }
+    if (c === "'"){ var e1 = readQuoted(i, "'"); push({ k:"str", v: src.slice(i, e1) }, i, e1); i = e1; continue; }
+    if (c === "["){
+      var j2 = i + 1;
+      while (j2 < n){ if (src[j2] === "]"){ if (src[j2+1] === "]"){ j2 += 2; continue; } break; } j2++; }
+      j2 = Math.min(j2 + 1, n); push({ k:"id", v: src.slice(i, j2) }, i, j2); i = j2; continue;
+    }
+    if (c === '"'){ var e2 = readQuoted(i, '"'); push({ k:"id", v: src.slice(i, e2) }, i, e2); i = e2; continue; }
+    if (/[A-Za-z0-9_@#À-ɏ]/.test(c)){
+      var j3 = i + 1;
+      while (j3 < n && /[A-Za-z0-9_@#$À-ɏ]/.test(src[j3])) j3++;
+      if (/[0-9]/.test(c)){
+        while (j3 < n && src[j3] === "." && /[0-9]/.test(src[j3+1] || "")){
+          j3++; while (j3 < n && /[0-9eE]/.test(src[j3])) j3++;
+        }
+      }
+      var w = src.slice(i, j3);
+      if ((w === "N" || w === "n") && src[j3] === "'"){
+        var e3 = readQuoted(j3, "'"); push({ k:"str", v: src.slice(i, e3) }, i, e3); i = e3; continue;
+      }
+      var tok = { k: /^[0-9]/.test(w) ? "n" : "w", v: w };
+      if (w.toUpperCase() === "GO"){
+        var ls = src.lastIndexOf("\n", i - 1) + 1, le = src.indexOf("\n", j3); if (le < 0) le = n;
+        tok.solo = src.slice(ls, i).trim() === "" && src.slice(j3, le).trim() === "";
+      }
+      push(tok, i, j3); i = j3; continue;
+    }
+    var two = src.slice(i, i + 2);
+    if (["<=",">=","<>","!=","+=","-=","*=","/=","%=","::","||"].indexOf(two) >= 0){ push({ k:"op", v:two }, i, i + 2); i += 2; continue; }
+    if ("=<>+-*/%&|^~!".indexOf(c) >= 0){ push({ k:"op", v:c }, i, i + 1); i++; continue; }
+    push({ k:"p", v:c }, i, i + 1); i++;
+  }
+  return t;
+}
+
+/* ====================== FORMATADOR T-SQL ====================== */
+var FMT_DEFAULTS = {
+  kw: "keep", indent: "tab",
+  expandCommas: true, trailingCommas: true, spaceAfterComma: true,
+  expandBool: true, expandCase: true, expandBetween: true, expandIn: true,
+  breakOn: true, whereNewLine: false, standardize: false,
+  statementBreaks: 2, clauseBreaks: 1
+};
+var STD_WORDS = { EXEC: "EXECUTE", TRAN: "TRANSACTION", PROC: "PROCEDURE" };
+var FMT_LIST = new Set("select group order set from values declare create".split(" "));
+var TIGHT = new Set(["DECLARE", "SET", "EXECUTE", "PRINT"]);
+var NOSTART_SELECT = ["", "insert", "with", "if", "else", "into", "create", "createtable"];
+var IF_NOT_AFTER = new Set("ELSE TABLE VIEW INDEX PROCEDURE PROC FUNCTION TRIGGER COLUMN EXISTS".split(" "));
+
+function escHtml(s){
+  return String(s).replace(/[&<>"']/g, function(c){ return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]; });
+}
+
+function formatSQL(src, o){
+  var opt = Object.assign({}, FMT_DEFAULTS, o || {});
+  var toks = tokenizeSQL(String(src));
+  var IND = opt.indent === "tab" ? "\t" : " ".repeat(parseInt(opt.indent, 10) || 4);
+  var out = "", atLS = true, prev = null, lastUnary = false, forceNl = false;
+  var caseStack = [];
+  function mk(inline, ind, closeInd, sub){
+    return { inline:inline, ind:ind, closeInd:closeInd, sub:sub, lineInd:ind, mode:"", stmt:"", afterKw:false, afterSelect:false,
+             expectTop:false, between:false, expandList:false, listInd:0, justOpened:false, blocks:0, colsDone:false };
+  }
+  var stack = [mk(false, 0, 0, false)];
+  function L(){ return stack[stack.length - 1]; }
+  function nl(n, extra){
+    out = out.replace(/[ \t]+$/, "");
+    if (out !== ""){
+      var want = 1 + (extra || 0), have = out.match(/\n*$/)[0].length;
+      while (have < want){ out += "\n"; have++; }
+    }
+    out += IND.repeat(n); atLS = true; L().lineInd = n;
+  }
+  function needSpace(cur, o2){
+    if (lastUnary) return false;
+    if (cur === ")" || cur === "," || cur === ";" || cur === ".") return false;
+    if (prev.v === "." || prev.v === "(" || prev.v === "::" || cur === "::") return false;
+    if (prev.k === "p" && prev.v === "," && !opt.spaceAfterComma) return false;
+    if (cur === "("){
+      if (o2.forceSpace) return true;
+      if (prev.k === "id") return false;
+      if (prev.k === "w" && !SPB.has(prev.up)) return false;
+      return true;
+    }
+    return true;
+  }
+  function emit(text, k, o2){
+    o2 = o2 || {};
+    if (!atLS && prev && needSpace(text, o2)) out += " ";
+    out += text; atLS = false;
+    prev = { k:k, v:text, up:text.toUpperCase() };
+    lastUnary = !!o2.unary;
+  }
+  function emitWord(tk, nt){
+    var raw = tk.v, u = raw.toUpperCase(), txt = raw;
+    var afterDot = prev && prev.v === ".", beforeDot = nt && nt.v === ".";
+    if (opt.standardize && STD_WORDS[u] && !afterDot && !beforeDot){
+      var rep = STD_WORDS[u]; txt = raw === raw.toLowerCase() ? rep.toLowerCase() : rep; u = rep;
+    }
+    if (opt.kw !== "keep" && !afterDot && !beforeDot){
+      if (KW.has(u) || TYPES.has(u) || (FN.has(u) && nt && nt.v === "(")) txt = opt.kw === "lower" ? txt.toLowerCase() : txt.toUpperCase();
+    }
+    emit(txt, "w");
+  }
+  function inCase(){ var c = caseStack[caseStack.length - 1]; return !!c && c.depth === stack.length; }
+  function condMode(l){ return l.mode === "where" || l.mode === "on" || l.mode === "having"; }
+  function listBreak(ind){
+    if (opt.trailingCommas){ emit(",", "p"); nl(ind); } else { nl(ind); emit(",", "p"); }
+  }
+  function stmtStart(l, kind){
+    var extra = 0;
+    if (out !== "" && prev && prev.v !== ";" && !l.justOpened && l.stmt !== "" && l.mode !== "if" && l.mode !== "else"){
+      if (!(TIGHT.has(kind) && kind === l.stmt)) extra = Math.max(0, opt.statementBreaks - 1);
+    }
+    nl(l.ind, extra); l.justOpened = false;
+  }
+  function isNewSelect(l){
+    return out !== "" && prev && prev.v !== ";" && !l.justOpened && l.stmt !== "" && NOSTART_SELECT.indexOf(l.mode) < 0;
+  }
+
+  for (var i = 0; i < toks.length; i++){
+    var tk = toks[i], nt = toks[i+1], l = L();
+    if (tk.k === "lc" || tk.k === "bc"){
+      if (forceNl){ nl(l.lineInd); forceNl = false; }
+      emit(tk.v, "c"); if (tk.k === "lc") forceNl = true; continue;
+    }
+    if (forceNl){ nl(l.lineInd); forceNl = false; }
+    var up = tk.k === "w" ? tk.v.toUpperCase() : tk.v;
+    var nextUp = nt ? (nt.k === "w" ? nt.v.toUpperCase() : nt.v) : "";
+    var prevUp = prev && prev.k === "w" ? prev.up : "";
+
+    if (tk.k === "w" && up === "GO" && tk.solo){
+      out = out.replace(/[ \t]+$/, ""); if (out !== "" && !out.endsWith("\n")) out += "\n";
+      out += "GO" + "\n".repeat(Math.max(1, opt.statementBreaks)); atLS = true; prev = null; caseStack = [];
+      stack.length = 1; stack[0] = mk(false, 0, 0, false); continue;
+    }
+
+    if (!l.inline && (l.afterSelect || l.afterKw)){
+      var keep = false;
+      if (l.afterSelect){
+        if (tk.k === "w" && (up === "DISTINCT" || up === "ALL" || up === "PERCENT")) keep = true;
+        else if (tk.k === "w" && up === "TOP"){ keep = true; l.expectTop = true; }
+        else if (l.expectTop && (tk.k === "w" || tk.k === "n" || (tk.k === "p" && tk.v === "("))){
+          keep = true; if (tk.k !== "p") l.expectTop = false;
+        }
+      }
+      if (!keep){ nl(l.ind + 1); l.afterSelect = false; l.afterKw = false; l.expectTop = false; }
+    }
+
+    if (tk.k === "w"){
+      if (up === "CASE"){ caseStack.push({ base: l.lineInd, depth: stack.length }); emitWord(tk, nt); continue; }
+      if (inCase()){
+        var cs = caseStack[caseStack.length - 1];
+        if (up === "WHEN" || up === "ELSE"){ if (opt.expandCase) nl(cs.base + 1); emitWord(tk, nt); continue; }
+        if (up === "END"){ caseStack.pop(); if (opt.expandCase) nl(cs.base); emitWord(tk, nt); continue; }
+      }
+      if (up === "BETWEEN"){ l.between = true; emitWord(tk, nt); continue; }
+      if (up === "AND" && l.between){
+        l.between = false;
+        if (!l.inline && opt.expandBetween && condMode(l) && !inCase()) nl(l.ind + 2);
+        emitWord(tk, nt); continue;
+      }
+    }
+
+    if (!l.inline && tk.k === "w"){
+      var done = true;
+      var clause = function(mode, first, blank){ nl(l.ind, blank ? opt.clauseBreaks - 1 : 0); emitWord(tk, nt); l.mode = mode; l.afterKw = !!first; l.between = false; };
+      switch (up){
+        case "SELECT":
+          if (isNewSelect(l)) stmtStart(l, "SELECT"); else { nl(l.ind); l.justOpened = false; }
+          emitWord(tk, nt); l.mode = "select"; l.afterSelect = opt.expandCommas; l.between = false;
+          if (l.stmt !== "INSERT") l.stmt = "SELECT";
+          break;
+        case "FROM": if (prevUp === "DELETE"){ emitWord(tk, nt); l.mode = "from"; } else clause("from", false, true); break;
+        case "WHERE": clause("where", opt.whereNewLine, true); break;
+        case "HAVING": clause("having", opt.whereNewLine, true); break;
+        case "GROUP": case "ORDER":
+          if (nextUp === "BY" && nt.k === "w"){
+            nl(l.ind, opt.clauseBreaks - 1); emitWord(tk, nt); emitWord(nt, toks[i+2]); i++;
+            l.mode = up === "GROUP" ? "group" : "order"; l.afterKw = opt.expandCommas; l.between = false;
+          } else done = false;
+          break;
+        case "UNION": case "INTERSECT": case "EXCEPT":
+          nl(l.ind, opt.clauseBreaks - 1); emitWord(tk, nt);
+          if (up === "UNION" && nextUp === "ALL"){ emitWord(nt, toks[i+2]); i++; }
+          nl(l.ind, opt.clauseBreaks - 1); l.mode = ""; l.afterKw = false; l.afterSelect = false; break;
+        case "JOIN":
+          if (!JOINMOD.has(prevUp)){
+            nl(l.ind);
+            if (opt.standardize) emitWord({ v: tk.v === tk.v.toLowerCase() ? "inner" : "INNER" }, null);
+          } else if (opt.standardize && (prevUp === "LEFT" || prevUp === "RIGHT" || prevUp === "FULL")){
+            emitWord({ v: tk.v === tk.v.toLowerCase() ? "outer" : "OUTER" }, null);
+          }
+          emitWord(tk, nt); l.mode = "from"; break;
+        case "INNER": case "LEFT": case "RIGHT": case "FULL": case "CROSS":
+          if (nt && nt.k === "w" && JOINNEXT.has(nextUp)){ nl(l.ind); emitWord(tk, nt); l.mode = "from"; } else done = false;
+          break;
+        case "OUTER":
+          if (prevUp === "LEFT" || prevUp === "RIGHT" || prevUp === "FULL") emitWord(tk, nt);
+          else if (nextUp === "APPLY"){ nl(l.ind); emitWord(tk, nt); l.mode = "from"; }
+          else done = false;
+          break;
+        case "ON":
+          if (l.mode === "from" || l.mode === "on"){ if (opt.breakOn) nl(l.ind + 1); emitWord(tk, nt); l.mode = "on"; } else done = false;
+          break;
+        case "AND": case "OR":
+          if (condMode(l) && opt.expandBool && !inCase()){ nl(l.ind + 1); emitWord(tk, nt); } else done = false;
+          break;
+        case "END":
+          if (l.blocks > 0){
+            l.blocks--; l.ind--; out = out.replace(/[ \t]*\n+[ \t]*$/, "\n"); nl(l.ind); emitWord(tk, nt); l.stmt = "END"; l.mode = "";
+          } else done = false;
+          break;
+        case "ELSE": nl(l.ind); emitWord(tk, nt); l.stmt = "ELSE"; l.mode = "else"; break;
+        case "SET":
+          if (l.stmt === "UPDATE") clause("set", opt.expandCommas, false);
+          else { stmtStart(l, "SET"); emitWord(tk, nt); l.stmt = "SET"; l.mode = "other"; }
+          break;
+        case "INSERT": stmtStart(l, "INSERT"); emitWord(tk, nt); l.stmt = "INSERT"; l.mode = "insert"; l.colsDone = false; break;
+        case "UPDATE":
+          if (prevUp === "FOR" || prevUp === "ON") done = false;
+          else { stmtStart(l, "UPDATE"); emitWord(tk, nt); l.stmt = "UPDATE"; l.mode = "update"; }
+          break;
+        case "DELETE":
+          if (prevUp === "ON") done = false;
+          else { stmtStart(l, "DELETE"); emitWord(tk, nt); l.stmt = "DELETE"; l.mode = "delete"; }
+          break;
+        case "VALUES": clause("values", opt.expandCommas, false); break;
+        case "INTO": if (l.mode === "select"){ nl(l.ind); emitWord(tk, nt); l.mode = "into"; } else done = false; break;
+        case "OPTION": clause("option", false, true); break;
+        case "WITH":
+          if (prev === null || prev.v === ";"){ nl(l.ind); emitWord(tk, nt); l.mode = "with"; l.stmt = "WITH"; } else done = false;
+          break;
+        case "TABLE": if (prevUp === "CREATE"){ emitWord(tk, nt); l.mode = "createtable"; } else done = false; break;
+        case "CREATE": case "ALTER": case "DROP":
+          stmtStart(l, up); emitWord(tk, nt); l.stmt = up; l.mode = up === "CREATE" ? "create" : "other"; break;
+        case "DECLARE": stmtStart(l, "DECLARE"); emitWord(tk, nt); l.stmt = "DECLARE"; l.mode = "declare"; break;
+        case "EXEC": case "EXECUTE": case "PRINT": case "TRUNCATE": case "USE": case "MERGE": case "RETURN":
+        case "COMMIT": case "ROLLBACK": case "THROW": case "RAISERROR": case "WHILE": {
+          var kind = up === "EXEC" ? "EXECUTE" : up;
+          stmtStart(l, kind); emitWord(tk, nt); l.stmt = kind; l.mode = up === "WHILE" ? "if" : "other"; break;
+        }
+        case "IF":
+          if (IF_NOT_AFTER.has(prevUp)) done = false;
+          else { stmtStart(l, "IF"); emitWord(tk, nt); l.stmt = "IF"; l.mode = "if"; }
+          break;
+        case "BEGIN":
+          if (nextUp === "TRAN" || nextUp === "TRANSACTION" || nextUp === "DISTRIBUTED"){
+            stmtStart(l, "BEGINTRAN"); emitWord(tk, nt); l.stmt = "BEGINTRAN"; l.mode = "other";
+          } else {
+            stmtStart(l, "BEGIN"); emitWord(tk, nt); l.ind++; l.blocks++; l.justOpened = true; l.stmt = ""; l.mode = "";
+          }
+          break;
+        default: done = false;
+      }
+      if (done) continue;
+    }
+
+    if (tk.k === "p"){
+      if (tk.v === ","){
+        if (l.inline && l.expandList){ listBreak(l.listInd); continue; }
+        if (!l.inline){
+          if (opt.expandCommas && FMT_LIST.has(l.mode)){ listBreak(l.ind + 1); continue; }
+          if (l.mode === "with"){ listBreak(l.ind); continue; }
+        }
+        emit(",", "p"); continue;
+      }
+      if (tk.v === ";"){
+        if (stack.length === 1){
+          out = out.replace(/[ \t]+$/, "") + ";" + "\n".repeat(Math.max(1, opt.statementBreaks)); atLS = true; prev = { k:"p", v:";", up:";" };
+          var keepInd = stack[0].ind, keepBlocks = stack[0].blocks;
+          stack[0] = mk(false, keepInd, keepInd, false); stack[0].blocks = keepBlocks; caseStack = []; lastUnary = false;
+        } else emit(";", "p");
+        continue;
+      }
+      if (tk.v === "("){
+        var isSub = nextUp === "SELECT";
+        var ownLine = !l.inline && !isSub && ((l.mode === "insert" && !l.colsDone && opt.expandCommas) || l.mode === "createtable");
+        var inList = !l.inline && !isSub && opt.expandIn && prevUp === "IN";
+        if (ownLine || inList){
+          if (ownLine){ nl(l.ind); if (l.mode === "createtable") l.mode = "create"; else l.colsDone = true; }
+          emit("(", "p");
+          var c2 = mk(true, l.lineInd, l.lineInd, false); c2.expandList = true; c2.listInd = l.lineInd + 1;
+          stack.push(c2); nl(c2.listInd); continue;
+        }
+        emit("(", "p", { forceSpace: !l.inline && l.mode === "insert" });
+        if (isSub){ var c = mk(false, l.lineInd + 1, l.lineInd, true); stack.push(c); nl(c.ind); }
+        else stack.push(mk(true, l.lineInd, l.lineInd, false));
+        continue;
+      }
+      if (tk.v === ")"){
+        if (stack.length > 1){
+          var popped = stack.pop();
+          if (popped.sub || popped.expandList){ nl(popped.closeInd); emit(")", "p"); } else emit(")", "p");
+          while (caseStack.length && caseStack[caseStack.length - 1].depth > stack.length) caseStack.pop();
+          L().expectTop = false;
+        } else emit(")", "p");
+        continue;
+      }
+      emit(tk.v, "p"); continue;
+    }
+    if (tk.k === "op"){
+      var unary = false;
+      if (tk.v === "-" || tk.v === "+"){
+        unary = atLS || !prev || prev.k === "op" || prev.v === "(" || prev.v === "," || (prev.k === "w" && UNARY_AFTER.has(prev.up));
+      }
+      emit(tk.v, "op", { unary: unary }); continue;
+    }
+    if (tk.k === "str" || tk.k === "id" || tk.k === "n"){ emit(tk.v, tk.k); continue; }
+    emitWord(tk, nt);
+  }
+  return out.replace(/[ \t]+$/gm, "").trim() + "\n";
+}
+
+/* ---------- Minificar ---------- */
+function minifySQL(src, keepComments){
+  var toks = tokenizeSQL(String(src)), out = "", prev = null;
+  function wordy(k){ return k === "w" || k === "n" || k === "str" || k === "id"; }
+  toks.forEach(function(tk){
+    var v = tk.v, k = tk.k;
+    if (k === "lc" || k === "bc"){
+      if (!keepComments) return;
+      if (k === "lc") v = "/*" + v.replace(/^--\s?/, "").replace(/\*\//g, "* /") + "*/";
+      k = "bc";
+    }
+    var sp = false;
+    if (prev){
+      if (k === "p" && (v === ")" || v === "," || v === ";" || v === "." || v === "(")) sp = false;
+      else if (prev.v === "(" || prev.v === "." ) sp = false;
+      else if (k === "bc" || prev.k === "bc") sp = true;
+      else if (wordy(prev.k) && wordy(k)) sp = true;
+      else if (prev.v === ")" && wordy(k)) sp = true;
+      else if (prev.k === "op" && k === "op") sp = true;
+    }
+    if (sp) out += " ";
+    out += v; prev = { k: k, v: v };
+  });
+  return out.trim() + "\n";
+}
+
+/* ---------- Colorir (HTML) ---------- */
+function highlightSQL(text){
+  text = String(text);
+  var toks = tokenizeSQL(text), h = "", pos = 0;
+  toks.forEach(function(tk, i){
+    h += escHtml(text.slice(pos, tk.s));
+    var cls = null, u = tk.v.toUpperCase(), nt = toks[i+1], pv = toks[i-1];
+    var afterDot = pv && pv.k === "p" && pv.v === ".";
+    if (tk.k === "lc" || tk.k === "bc") cls = "c";
+    else if (tk.k === "str") cls = "s";
+    else if (tk.k === "n") cls = "n";
+    else if (tk.k === "id") cls = "i";
+    else if (tk.k === "op") cls = "o";
+    else if (tk.k === "w"){
+      if (tk.v[0] === "@") cls = "v";
+      else if (!afterDot && (KW.has(u) || TYPES.has(u))) cls = "k";
+      else if (!afterDot && FN.has(u) && nt && nt.v === "(") cls = "f";
+    }
+    var seg = escHtml(text.slice(tk.s, tk.e));
+    h += cls ? '<span class="h-' + cls + '">' + seg + "</span>" : seg;
+    pos = tk.e;
+  });
+  return h + escHtml(text.slice(pos));
+}
+
+
+
+/* ====================== DESPARAMETRIZADOR ====================== */
+function sqlStringValue(tok){
+  var v = tok.v;
+  if (/^[Nn]'/.test(v)) v = v.slice(1);
+  return v.slice(1, -1).replace(/''/g, "'");
+}
+function splitTopLevel(s){
+  var parts = [], depth = 0, cur = "";
+  for (var i = 0; i < s.length; i++){
+    var ch = s[i];
+    if (ch === "(") depth++;
+    else if (ch === ")") depth = Math.max(0, depth - 1);
+    if (ch === "," && depth === 0){ parts.push(cur); cur = ""; } else cur += ch;
+  }
+  if (cur.trim() !== "") parts.push(cur);
+  return parts;
+}
+function unparameterize(text){
+  var src = String(text), toks = tokenizeSQL(src);
+  var idx = -1, count = 0;
+  for (var i = 0; i < toks.length; i++){
+    var t = toks[i];
+    if ((t.k === "w" || t.k === "id") && /^sp_executesql$/i.test(t.v.replace(/^\[|\]$/g, ""))){ count++; if (idx < 0) idx = i; }
+  }
+  if (idx < 0) throw new Error("Não encontrei sp_executesql no texto.");
+  var STOP = { EXEC:1, EXECUTE:1, SELECT:1, INSERT:1, UPDATE:1, DELETE:1, DECLARE:1, SET:1, WITH:1, GO:1 };
+  var p = idx + 1, args = [];
+  while (p < toks.length){
+    var depth = 0, start = p;
+    while (p < toks.length){
+      var x = toks[p];
+      if (x.k === "p" && x.v === "(") depth++;
+      else if (x.k === "p" && x.v === ")"){ if (depth === 0) break; depth--; }
+      else if (depth === 0 && x.k === "p" && (x.v === "," || x.v === ";")) break;
+      else if (depth === 0 && p > start && x.k === "w" && STOP[x.v.toUpperCase()]) break;
+      p++;
+    }
+    if (p > start) args.push(toks.slice(start, p));
+    if (p < toks.length && toks[p].k === "p" && toks[p].v === ","){ p++; continue; }
+    break;
+  }
+  var pos = [], named = [], stmtT = null, paramsT = null;
+  args.forEach(function(a){
+    var name = null, vt = a;
+    if (a.length >= 2 && a[0].k === "w" && a[0].v[0] === "@" && a[1].k === "op" && a[1].v === "="){ name = a[0].v; vt = a.slice(2); }
+    if (!vt.length) return;
+    var nm = name ? name.toLowerCase() : null;
+    if (nm === "@stmt" || nm === "@statement") stmtT = vt;
+    else if (nm === "@params") paramsT = vt;
+    else if (nm) named.push({ name: name, vt: vt });
+    else pos.push(vt);
+  });
+  if (!stmtT) stmtT = pos.shift();
+  if (!paramsT && pos.length) paramsT = pos.shift();
+  if (!stmtT) throw new Error("Não consegui identificar o texto da query (primeiro argumento do sp_executesql).");
+  if (stmtT.length !== 1 || stmtT[0].k !== "str") throw new Error("O texto da query precisa ser um literal N'...' (não uma variável ou concatenação).");
+  var sql = sqlStringValue(stmtT[0]).trim();
+  var defs = [];
+  if (paramsT && paramsT.length === 1 && paramsT[0].k === "str"){
+    splitTopLevel(sqlStringValue(paramsT[0])).forEach(function(d){
+      var m = d.trim().match(/^(@\w+)\s+([\s\S]*?)(\s+(?:OUTPUT|OUT))?$/i);
+      if (m) defs.push({ name: m[1], type: m[2].trim(), out: !!m[3] });
+    });
+  }
+  pos.forEach(function(vt, i){ if (defs[i]) named.push({ name: defs[i].name, vt: vt }); });
+  var vmap = {};
+  named.forEach(function(a){
+    vmap[a.name.toLowerCase()] = src.slice(a.vt[0].s, a.vt[a.vt.length - 1].e).trim().replace(/\s+OUT(?:PUT)?$/i, "");
+  });
+  var lines = defs.map(function(d){
+    var v = vmap[d.name.toLowerCase()];
+    return "DECLARE " + d.name + " " + d.type + (v !== undefined ? " = " + v : "") + ";";
+  });
+  var notes = [];
+  if (count > 1) notes.push("Foram encontradas " + count + " chamadas; só a primeira foi convertida.");
+  if (!defs.length) notes.push("Nenhuma definição de parâmetros (@params) encontrada: a query foi extraída sem DECLARE.");
+  return { sql: lines.join("\n") + (lines.length ? "\n\n" : "") + sql, params: defs.length, notes: notes, query: sql, declares: lines };
+}
+
+/* ====================== ANONIMIZADOR ====================== */
+var ANON_KEEP = new Set();
+[KW, TYPES, FN, KEEP_EXTRA].forEach(function(s){ s.forEach(function(w){ ANON_KEEP.add(w); }); });
+var TABLE_PREV = new Set("FROM JOIN INTO UPDATE TABLE APPLY MERGE USING TRUNCATE".split(" "));
+
+function anonymizeSQL(src, o){
+  o = Object.assign({ strings:true, numbers:false, idents:true, vars:true, comments:true, keepDbo:true }, o || {});
+  src = String(src);
+  var toks = tokenizeSQL(src), reps = [], map = {}, counters = {}, mapping = [];
+  var aliasIdx = {};
+  function label(name, kind){
+    var key = name.toLowerCase();
+    if (!map[key]){ counters[kind] = (counters[kind] || 0) + 1; map[key] = kind + "_" + counters[kind]; mapping.push([name, map[key]]); }
+    return map[key];
+  }
+  function inner(tok){
+    if (tok.k === "id") return tok.v.slice(1, -1);
+    return tok.v;
+  }
+  function wrap(tok, newName){
+    if (tok.k === "id") return tok.v[0] + newName + tok.v[tok.v.length - 1];
+    return newName;
+  }
+  function isSystem(name){ return o.keepDbo && /^(dbo|sys|information_schema)$/i.test(name); }
+  var prevUp = "";
+  var i = 0;
+  while (i < toks.length){
+    var tk = toks[i];
+    if (tk.k === "lc" || tk.k === "bc"){
+      if (o.comments) reps.push({ s: tk.s, e: tk.e, t: "" });
+      i++; continue;
+    }
+    if (tk.k === "str"){
+      if (o.strings && !/^[Nn]?''$/.test(tk.v)) reps.push({ s: tk.s, e: tk.e, t: (/^[Nn]/.test(tk.v) ? "N" : "") + "'xxx'" });
+    } else if (tk.k === "n"){
+      if (o.numbers) reps.push({ s: tk.s, e: tk.e, t: "0" });
+    } else if (tk.k === "w" && tk.v[0] === "@"){
+      if (o.vars && tk.v.slice(0, 2) !== "@@") reps.push({ s: tk.s, e: tk.e, t: "@" + label(tk.v.slice(1), "var") });
+    } else if ((tk.k === "w" || tk.k === "id") && o.idents){
+      // cadeia a.b.c
+      var chain = [i], j = i;
+      while (toks[j+1] && toks[j+1].k === "p" && toks[j+1].v === "." && toks[j+2] && (toks[j+2].k === "w" || toks[j+2].k === "id")){ j += 2; chain.push(j); }
+      var firstName = inner(tk);
+      var up = tk.k === "w" ? tk.v.toUpperCase() : "";
+      var sysChain = chain.length > 1 && o.keepDbo && /^(sys|information_schema)$/i.test(firstName);
+      var single = chain.length === 1;
+      var treatAsIdent = tk.k === "id" || !single || !ANON_KEEP.has(up);
+      if (single && tk.k === "w" && up === "GO") treatAsIdent = false;
+      if (treatAsIdent && !sysChain){
+        var nextTok = toks[chain[chain.length - 1] + 1];
+        var tableCtx = TABLE_PREV.has(prevUp);
+        var isFn = single && nextTok && nextTok.k === "p" && nextTok.v === "(";
+        chain.forEach(function(ci, pos){
+          var ct = toks[ci], nm = inner(ct), last = pos === chain.length - 1;
+          if (isSystem(nm)) return;
+          var kind;
+          if (isFn) kind = "funcao";
+          else if (tableCtx) kind = last ? "tabela" : (pos === chain.length - 2 ? "esquema" : "banco");
+          else if (aliasIdx[ci] || prevUp === "AS") kind = "alias";
+          else kind = last ? "coluna" : "alias";
+          reps.push({ s: ct.s, e: ct.e, t: wrap(ct, label(nm, kind)) });
+        });
+        // alias logo após a tabela
+        if (tableCtx && !isFn){
+          var k = chain[chain.length - 1] + 1;
+          if (toks[k] && toks[k].k === "w" && toks[k].v.toUpperCase() === "AS") k++;
+          var cand = toks[k];
+          if (cand && ((cand.k === "w" && !ANON_KEEP.has(cand.v.toUpperCase()) && cand.v[0] !== "@") || cand.k === "id") && !(toks[k+1] && toks[k+1].k === "p" && toks[k+1].v === ".")) aliasIdx[k] = true;
+        }
+      }
+      i = chain[chain.length - 1];
+      prevUp = tk.k === "w" && single ? up : "";
+      i++; continue;
+    }
+    prevUp = tk.k === "w" ? tk.v.toUpperCase() : "";
+    i++;
+  }
+  reps.sort(function(a, b){ return b.s - a.s; });
+  var out = src;
+  reps.forEach(function(r){ out = out.slice(0, r.s) + r.t + out.slice(r.e); });
+  return { text: out, mapping: mapping };
+}
+
+/* ====================== XML (deadlock e plano) ====================== */
+function cleanXML(t){
+  return String(t).replace(/^﻿/, "").replace(/^\s+/, "")
+    .replace(/(<\?xml[^>]*?)\sencoding\s*=\s*("[^"]*"|'[^']*')/i, "$1");
+}
+function parseXML(text){
+  var doc = new DOMParser().parseFromString(cleanXML(text), "text/xml");
+  if (!doc || !doc.documentElement || doc.getElementsByTagName("parsererror").length)
+    throw new Error("XML inválido ou incompleto. Cole o conteúdo completo, começando em < e terminando no último >.");
+  return doc;
+}
+function ln(n){ return n.localName || String(n.nodeName).replace(/^.*:/, ""); }
+function kids(el, name){
+  var r = [], c = el.childNodes;
+  for (var i = 0; i < c.length; i++){ var n = c[i]; if (n.nodeType === 1 && (!name || ln(n) === name)) r.push(n); }
+  return r;
+}
+function attr(el, n){ var v = el.getAttribute(n); return v === null || v === undefined ? "" : v; }
+function num(el, n){ var v = parseFloat(el.getAttribute(n)); return isNaN(v) ? 0 : v; }
+function descendants(el, name){ return Array.prototype.slice.call(el.getElementsByTagName(name)); }
+function allAttrs(el){
+  var o = {}, a = el.attributes;
+  for (var i = 0; i < a.length; i++) o[a[i].name] = a[i].value;
+  return o;
+}
+
+/* ====================== DEADLOCK ====================== */
+function parseDeadlock(xml){
+  var doc = parseXML(xml), dls = descendants(doc, "deadlock");
+  if (!dls.length) throw new Error("Não encontrei o elemento <deadlock>. Cole o XML do deadlock graph (xml_deadlock_report).");
+  return dls.map(function(dl){
+    var victims = [];
+    kids(dl, "victim-list").forEach(function(vl){ kids(vl, "victimProcess").forEach(function(v){ victims.push(attr(v, "id")); }); });
+    if (!victims.length && attr(dl, "victim")) victims.push(attr(dl, "victim"));
+    var procs = [];
+    kids(dl, "process-list").forEach(function(pl){
+      kids(pl, "process").forEach(function(p){
+        var frames = [];
+        kids(p, "executionStack").forEach(function(es){
+          kids(es, "frame").forEach(function(f){ frames.push({ proc: attr(f, "procname"), line: attr(f, "line"), text: (f.textContent || "").trim() }); });
+        });
+        var ib = kids(p, "inputbuf")[0];
+        procs.push({
+          id: attr(p, "id"), spid: attr(p, "spid"), login: attr(p, "loginname"), host: attr(p, "hostname"), app: attr(p, "clientapp"),
+          db: attr(p, "currentdbname") || attr(p, "currentdb"), isolation: attr(p, "isolationlevel"), waitResource: attr(p, "waitresource"),
+          waitTime: num(p, "waittime"), lockMode: attr(p, "lockMode"), status: attr(p, "status"), trancount: attr(p, "trancount"),
+          started: attr(p, "lastbatchstarted"), priority: attr(p, "priority"), frames: frames, input: ib ? (ib.textContent || "").trim() : ""
+        });
+      });
+    });
+    var resources = [];
+    kids(dl, "resource-list").forEach(function(rl){
+      kids(rl).forEach(function(r){
+        var owners = [], waiters = [];
+        kids(r, "owner-list").forEach(function(ol){ kids(ol, "owner").forEach(function(o){ owners.push({ id: attr(o, "id"), mode: attr(o, "mode") }); }); });
+        kids(r, "waiter-list").forEach(function(wl){ kids(wl, "waiter").forEach(function(w){ waiters.push({ id: attr(w, "id"), mode: attr(w, "mode"), req: attr(w, "requestType") }); }); });
+        resources.push({ type: ln(r), object: attr(r, "objectname"), index: attr(r, "indexname"), mode: attr(r, "mode"), dbid: attr(r, "dbid"),
+          page: attr(r, "pageid"), file: attr(r, "fileid"), sub: attr(r, "subresource"), owners: owners, waiters: waiters });
+      });
+    });
+    return { victims: victims, processes: procs, resources: resources };
+  });
+}
+
+var LOCK_MODE_PT = {
+  S: "S (compartilhado, leitura)", X: "X (exclusivo, escrita)", U: "U (atualização)",
+  IS: "IS (intenção de leitura)", IX: "IX (intenção de escrita)", SIX: "SIX", "SCH-S": "Sch-S (estabilidade de esquema)", "SCH-M": "Sch-M (modificação de esquema)",
+  RANGES_S: "RangeS-S", RANGEX_X: "RangeX-X"
+};
+var LOCK_TYPE_PT = {
+  keylock: "chave de índice (linha)", pagelock: "página", objectlock: "tabela/objeto", ridlock: "linha em heap (RID)",
+  hobtlock: "HoBT", rowgrouplock: "rowgroup columnstore", metadatalock: "metadados", applock: "lock de aplicação", databaselock: "banco de dados",
+  extentlock: "extent", allocationunitlock: "unidade de alocação", filelock: "arquivo"
+};
+function modeName(m){ return LOCK_MODE_PT[String(m).toUpperCase()] || m || "?"; }
+function typeName(t){ return LOCK_TYPE_PT[t] || t; }
+
+function explainDeadlock(d){
+  var pm = {};
+  d.processes.forEach(function(p){ pm[p.id] = p; });
+  function pl(id){
+    var p = pm[id];
+    if (!p) return id;
+    return "SPID " + p.spid + (p.login ? " (" + p.login + ")" : "");
+  }
+  function rl(r){ return typeName(r.type) + (r.object ? " " + r.object : "") + (r.index ? " [índice " + r.index + "]" : ""); }
+  var out = { victims: [], edges: [], why: [], hints: [] };
+  d.victims.forEach(function(v){
+    var p = pm[v];
+    out.victims.push(pl(v) + (p ? (p.app ? ", aplicação " + p.app : "") + (p.host ? ", máquina " + p.host : "") : "") +
+      ". O SQL Server escolheu essa sessão e a desfez (erro 1205). Em geral a escolha recai sobre a que custa menos para desfazer ou a de menor DEADLOCK_PRIORITY.");
+  });
+  var edges = [];
+  d.resources.forEach(function(r){
+    r.waiters.forEach(function(w){
+      r.owners.forEach(function(o){
+        if (o.id === w.id) return;
+        edges.push({ from: w.id, to: o.id, res: r, fromMode: w.mode, toMode: o.mode });
+      });
+    });
+  });
+  edges.forEach(function(e){
+    out.edges.push(pl(e.from) + " esperava " + modeName(e.fromMode) + " em " + rl(e.res) + ", que estava com " + pl(e.to) + " em " + modeName(e.toMode) + ".");
+  });
+  // por quê
+  if (edges.length >= 2) out.why.push("Cada sessão segurava um recurso que a outra precisava e ficou esperando pelo recurso da outra: forma-se um ciclo e nenhuma consegue avançar. Por isso o SQL Server encerra uma delas.");
+  else out.why.push("O gráfico mostra um impasse entre as sessões listadas: cada uma esperava um bloqueio mantido por outra.");
+  var modes = {}; d.resources.forEach(function(r){ r.owners.concat(r.waiters).forEach(function(x){ modes[String(x.mode).toUpperCase()] = true; }); });
+  var writes = modes.X || modes.U || modes.IX || modes.SIX;
+  if (modes.S && writes) out.hints.push("Mistura de leitura (S) e escrita (X/U): é comum quando um SELECT em READ COMMITTED esbarra em um UPDATE na mesma linha ou índice. Avalie índices que evitem a leitura extra, transações mais curtas ou, se fizer sentido para o sistema, RCSI/snapshot (teste o impacto antes).");
+  var byObj = {};
+  d.resources.forEach(function(r){ if (r.type === "keylock" && r.object){ (byObj[r.object] = byObj[r.object] || {})[r.index] = true; } });
+  Object.keys(byObj).forEach(function(o){ if (Object.keys(byObj[o]).length > 1) out.hints.push("A tabela " + o + " aparece com mais de um índice envolvido: padrão típico de atualização que precisa manter vários índices enquanto outra sessão lê por outro caminho (ex.: índice não clusterizado + lookup)."); });
+  if (d.resources.some(function(r){ return r.type === "pagelock" || r.type === "objectlock"; })) out.hints.push("Há bloqueio de página ou tabela: pode indicar escalonamento de locks ou consulta sem índice adequado lendo mais do que precisa.");
+  var procNames = {}; d.processes.forEach(function(p){ p.frames.forEach(function(f){ if (f.proc && f.proc !== "unknown") procNames[f.proc] = true; }); });
+  var pn = Object.keys(procNames);
+  if (pn.length) out.hints.push("Código envolvido: " + pn.join(", ") + ". Verifique se os objetos são acessados na mesma ordem em todos os caminhos.");
+  out.generic = [
+    "Acessar as mesmas tabelas sempre na mesma ordem nas transações.",
+    "Manter as transações curtas e sem espera por usuário ou chamadas externas.",
+    "Criar ou ajustar índices para que a consulta leia só o necessário.",
+    "No aplicativo, tratar o erro 1205 repetindo a transação (retry)."
+  ];
+  return out;
+}
+
+/* ====================== PLANO DE EXECUÇÃO ====================== */
+function warnList(w){
+  var list = [], a = allAttrs(w);
+  Object.keys(a).forEach(function(k){ if (/^(true|1)$/i.test(a[k])) list.push({ kind: k, attrs: {} }); });
+  kids(w).forEach(function(c){ list.push({ kind: ln(c), attrs: allAttrs(c) }); });
+  return list;
+}
+function buildOp(el, depth){
+  var n = {
+    id: attr(el, "NodeId"), phys: attr(el, "PhysicalOp"), logical: attr(el, "LogicalOp"),
+    estRows: num(el, "EstimateRows"), estIO: num(el, "EstimateIO"), estCPU: num(el, "EstimateCPU"),
+    sub: num(el, "EstimatedTotalSubtreeCost"), rebinds: num(el, "EstimateRebinds"), rewinds: num(el, "EstimateRewinds"),
+    tableCard: num(el, "TableCardinality"), parallel: /^(1|true)$/i.test(attr(el, "Parallel")),
+    depth: depth, obj: null, lookup: false, hasPred: false, warnings: [], rt: null, children: [], own: 0
+  };
+  function scan(w, top){
+    kids(w).forEach(function(x){
+      var nm = ln(x);
+      if (nm === "RelOp") n.children.push(buildOp(x, depth + 1));
+      else if (nm === "Object" && top && !n.obj){ n.obj = allAttrs(x); }
+      else if (nm === "Predicate" || nm === "SeekPredicates" || nm === "SeekPredicateNew"){ n.hasPred = true; scan(x, false); }
+      else scan(x, false);
+    });
+  }
+  kids(el).forEach(function(c){
+    var nm = ln(c);
+    if (nm === "RunTimeInformation"){
+      var rt = { rows: 0, rowsRead: 0, execs: 0, elapsed: 0, cpu: 0, logical: 0, physical: 0, threads: 0 };
+      kids(c, "RunTimeCountersPerThread").forEach(function(t){
+        rt.rows += num(t, "ActualRows"); rt.rowsRead += num(t, "ActualRowsRead"); rt.execs += num(t, "ActualExecutions");
+        rt.elapsed = Math.max(rt.elapsed, num(t, "ActualElapsedms")); rt.cpu += num(t, "ActualCPUms");
+        rt.logical += num(t, "ActualLogicalReads"); rt.physical += num(t, "ActualPhysicalReads"); rt.threads++;
+      });
+      if (rt.threads) n.rt = rt;
+    } else if (nm === "Warnings"){ n.warnings = warnList(c); }
+    else if (nm === "RelOp"){ n.children.push(buildOp(c, depth + 1)); }
+    else if (nm !== "OutputList"){
+      if (/^(true|1)$/i.test(attr(c, "Lookup"))) n.lookup = true;
+      scan(c, true);
+    }
+  });
+  n.own = Math.max(0, n.sub - n.children.reduce(function(a, c){ return a + c.sub; }, 0));
+  return n;
+}
+function flattenOps(n, arr){ arr.push(n); n.children.forEach(function(c){ flattenOps(c, arr); }); }
+function objName(o){
+  if (!o) return "";
+  var t = (o.Schema ? o.Schema + "." : "") + (o.Table || "");
+  return t + (o.Index ? " (" + o.Index + ")" : "");
+}
+function sanitizeIdent(s){ return String(s).replace(/[\[\]"]/g, "").replace(/[^A-Za-z0-9_]+/g, "_").replace(/^_+|_+$/g, ""); }
+
+function analyzePlan(xml){
+  var doc = parseXML(xml), root = doc.documentElement;
+  if (ln(root) !== "ShowPlanXML") throw new Error("Isso não parece um plano de execução: não encontrei o elemento ShowPlanXML.");
+  var res = { version: attr(root, "Version"), build: attr(root, "Build"), statements: [], actual: false };
+  descendants(doc, "StmtSimple").forEach(function(st){
+    var s = {
+      type: attr(st, "StatementType"), text: attr(st, "StatementText").replace(/\s+/g, " ").trim(), cost: num(st, "StatementSubTreeCost"),
+      estRows: num(st, "StatementEstRows"), optLevel: attr(st, "StatementOptmLevel"), earlyAbort: attr(st, "StatementOptmEarlyAbortReason"),
+      cardModel: attr(st, "CardinalityEstimationModelVersion"), findings: [], missing: [], ops: [], params: [], dop: 0, compileMs: 0,
+      grant: null, hasPlan: false
+    };
+    function find(sev, title, detail){ s.findings.push({ sev: sev, title: title, detail: detail }); }
+    var qp = kids(st, "QueryPlan")[0];
+    if (qp){
+      s.hasPlan = true;
+      s.dop = num(qp, "DegreeOfParallelism"); s.compileMs = num(qp, "CompileTime");
+      var nonPar = attr(qp, "NonParallelPlanReason");
+      if (nonPar) find("info", "Plano não paralelo", "Motivo informado pelo otimizador: " + nonPar + ".");
+      else if (s.dop > 1) find("info", "Plano paralelo", "Grau de paralelismo " + s.dop + ".");
+      var mg = kids(qp, "MemoryGrantInfo")[0];
+      if (mg){
+        var granted = num(mg, "GrantedMemory"), used = num(mg, "MaxUsedMemory"), wait = num(mg, "GrantWaitTime");
+        s.grant = { granted: granted, used: used, wait: wait };
+        if (granted >= 10240 && used > 0 && used < granted * 0.1) find("medio", "Concessão de memória muito acima do uso", "Concedido " + Math.round(granted / 1024) + " MB, usado no máximo " + Math.round(used / 1024) + " MB. Memória reservada à toa pode atrasar outras consultas.");
+        if (wait > 0) find("medio", "Espera pela concessão de memória", "A consulta esperou " + wait + " ms para receber memória.");
+      }
+      kids(qp, "Warnings").forEach(function(w){
+        kids(w, "PlanAffectingConvert").forEach(function(c){
+          var issue = attr(c, "ConvertIssue");
+          find(/seek/i.test(issue) ? "alto" : "medio", "Conversão implícita (" + (issue || "n/d") + ")", attr(c, "Expression") + (/seek/i.test(issue) ? " — impede um Index Seek na coluna; alinhe o tipo do parâmetro com o da coluna." : ""));
+        });
+        var wa = allAttrs(w);
+        if (/^(true|1)$/i.test(wa.NoJoinPredicate)) find("alto", "JOIN sem predicado", "O otimizador avisou que há um JOIN sem condição de junção (produto cartesiano).");
+        kids(w, "ColumnsWithNoStatistics").forEach(function(c){ find("medio", "Colunas sem estatísticas", kids(c, "ColumnReference").map(function(x){ return attr(x, "Column"); }).join(", ")); });
+      });
+      kids(qp, "MissingIndexes").forEach(function(mi){
+        kids(mi, "MissingIndexGroup").forEach(function(g){
+          var impact = num(g, "Impact");
+          kids(g, "MissingIndex").forEach(function(ix){
+            var eq = [], ineq = [], inc = [];
+            kids(ix, "ColumnGroup").forEach(function(cg){
+              var u = attr(cg, "Usage").toUpperCase();
+              kids(cg, "Column").forEach(function(c){ (u === "EQUALITY" ? eq : u === "INEQUALITY" ? ineq : inc).push(attr(c, "Name")); });
+            });
+            var table = attr(ix, "Database") + "." + attr(ix, "Schema") + "." + attr(ix, "Table");
+            var keys = eq.concat(ineq);
+            var nm = ("IX_" + sanitizeIdent(attr(ix, "Table")) + "_" + keys.map(sanitizeIdent).join("_")).slice(0, 100);
+            var stmt = "CREATE NONCLUSTERED INDEX [" + nm + "]\nON " + table + " (" + keys.join(", ") + ")" + (inc.length ? "\nINCLUDE (" + inc.join(", ") + ")" : "") + ";";
+            s.missing.push({ impact: impact, table: table, sql: stmt });
+            find(impact >= 50 ? "alto" : "medio", "Índice ausente sugerido (impacto " + impact + "%)", table + " — chaves: " + (keys.join(", ") || "n/d") + (inc.length ? "; incluídas: " + inc.join(", ") : "") + ".");
+          });
+        });
+      });
+      kids(qp, "ParameterList").forEach(function(pl){
+        kids(pl, "ColumnReference").forEach(function(c){
+          s.params.push({ name: attr(c, "Column"), type: attr(c, "ParameterDataType"), compiled: attr(c, "ParameterCompiledValue"), runtime: attr(c, "ParameterRuntimeValue") });
+        });
+      });
+      s.params.forEach(function(p){
+        if (p.compiled && p.runtime && p.compiled !== p.runtime) find("info", "Valor de compilação diferente do de execução (" + p.name + ")", "Compilado com " + p.compiled + " e executado com " + p.runtime + ". Se a consulta variar muito conforme o parâmetro, pode haver parameter sniffing.");
+      });
+      var roots = kids(qp, "RelOp").map(function(r){ return buildOp(r, 0); });
+      var flat = [];
+      roots.forEach(function(r){ flattenOps(r, flat); });
+      s.ops = flat;
+      flat.forEach(function(n){
+        if (n.rt) res.actual = true;
+        var label = "Nó " + n.id + " " + n.phys + (n.obj ? " em " + objName(n.obj) : "");
+        n.warnings.forEach(function(w){
+          if (/Spill/i.test(w.kind)) find("alto", "Spill no tempdb", label + " (" + w.kind + "). A operação não coube na memória concedida e usou o disco.");
+          else if (/NoJoinPredicate/i.test(w.kind)) find("alto", "JOIN sem predicado", label);
+          else if (/ColumnsWithNoStatistics/i.test(w.kind)) find("medio", "Colunas sem estatísticas", label);
+        });
+        var isScan = /Scan$/.test(n.phys) && !/Constant|Columnstore|Remote|Table-valued/i.test(n.phys);
+        var rowsAct = n.rt ? n.rt.rows : 0, big = Math.max(n.estRows, rowsAct) >= 10000;
+        if (isScan){
+          var extra = n.rt && n.rt.rowsRead >= 10000 && n.rt.rows <= n.rt.rowsRead * 0.1 ? " Leu " + n.rt.rowsRead + " linhas e retornou " + n.rt.rows + ": um predicado descartou a maior parte." : "";
+          find(big ? "medio" : "info", "Varredura (" + n.phys + ")", label + (n.rt ? ", " + rowsAct + " linhas reais" : ", " + n.estRows + " linhas estimadas") + "." + extra);
+        }
+        if (n.lookup || /Lookup/i.test(n.phys + " " + n.logical)){
+          var lk = n.rt ? n.rt.rows : n.estRows * (1 + n.rebinds + n.rewinds);
+          find(lk >= 1000 ? "medio" : "info", "Key/RID Lookup", label + " (~" + Math.round(lk) + " buscas). Cada linha volta ao índice clusterizado ou heap; um índice com colunas INCLUDE pode evitar isso.");
+        }
+        if (n.rt && n.rt.execs > 0){
+          var estAll = n.estRows * (1 + n.rebinds + n.rewinds), act = n.rt.rows;
+          var hi = Math.max(estAll, act), lo = Math.max(1, Math.min(estAll, act));
+          if (hi >= 1000 && hi / lo >= 10) find(hi / lo >= 100 ? "alto" : "medio", "Estimativa muito diferente do real", label + ": estimado ~" + Math.round(estAll) + ", real " + act + " (diferença de " + Math.round(hi / lo) + "x). Estatísticas desatualizadas ou predicado difícil de estimar costumam causar isso.");
+        }
+      });
+      var sevOrder = { alto: 0, medio: 1, info: 2 };
+      s.findings.sort(function(a, b){ return sevOrder[a.sev] - sevOrder[b.sev]; });
+    }
+    res.statements.push(s);
+  });
+  if (!res.statements.length) throw new Error("Não encontrei nenhuma instrução (StmtSimple) neste plano.");
+  return res;
+}
+</script>
+
+<!-- ======================= INTERFACE ======================= -->
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var nf = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
+  var nf1 = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
+  function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+  function copyText(text, btn, label){
+    var done = function(ok){ btn.textContent = ok ? "Copiado!" : "Selecione e copie manualmente"; setTimeout(function(){ btn.textContent = label; }, 1800); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function(){ done(true); }, function(){ done(false); });
+    else done(false);
+  }
+  function fmtMs(ms){ return nf.format(ms) + " ms" + (ms >= 1000 ? " (" + nf.format(ms / 1000) + " s)" : ""); }
+
+  /* ---------- Ferramentas e tela inicial ---------- */
+  var TOOLS = [
+    { id: "formatador", g: 0, c: 1, name: "Formatador SQL", desc: "Organiza e indenta o T-SQL, com dezenas de opções de estilo.", icon: "M4 6h16M8 12h12M8 18h8" },
+    { id: "desparametrizador", g: 0, c: 6, name: "Desparametrizador", desc: "sp_executesql vira query com DECLARE, pronta para rodar.", icon: "M8 4c-2 0-3 1-3 3v2c0 1-1 3-2 3 1 0 2 2 2 3v2c0 2 1 3 3 3M16 4c2 0 3 1 3 3v2c0 1 1 3 2 3-1 0-2 2-2 3v2c0 2-1 3-3 3" },
+    { id: "anonimizador", g: 0, c: 5, name: "Anonimizador", desc: "Troca nomes e valores antes de compartilhar a query.", icon: "M3 12s4-7 9-7 9 7 9 7-4 7-9 7-9-7-9-7zM4 4l16 16" },
+    { id: "io", g: 1, c: 2, name: "Analisador IO / TIME", desc: "Totais e peso por tabela do STATISTICS IO/TIME.", icon: "M5 20V10M12 20V4M19 20v-7" },
+    { id: "plano", g: 1, c: 3, name: "Plano de execução", desc: "Alertas, índices ausentes e operadores por custo, do .sqlplan.", icon: "M12 5v4M12 9H6v6M12 9h6v6M4 15h4v4H4zM16 15h4v4h-4zM10 3h4v3h-4z" },
+    { id: "deadlock", g: 1, c: 4, name: "Deadlock", desc: "Vítima, objetos e o porquê do impasse a partir do XML.", icon: "M7 7h10l-3-3M17 17H7l3 3" },
+    { id: "comparativo", g: 2, c: 7, wide: true, name: "Comparativo antes/depois", desc: "Cole o resultado de antes e depois do tuning e veja quanto você ganhou em tempo, CPU e leituras.", icon: "M8 4L4 8l4 4M4 8h16M16 12l4 4-4 4M20 16H4" }
+  ];
+  var GROUPS = ["Escrever e limpar", "Diagnosticar", "Medir o resultado"];
+  $("tiles").innerHTML = GROUPS.map(function(gn, gi){
+    return '<div class="group"><h2>' + esc(gn) + '</h2><div class="tiles">' + TOOLS.filter(function(t){ return t.g === gi; }).map(function(t){
+      var ic = '<span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + t.icon + '"/></svg></span>';
+      var tx = '<b>' + esc(t.name) + '</b><span class="d">' + esc(t.desc) + '</span>';
+      return '<a class="tile' + (t.wide ? ' wide' : '') + '" style="--c:var(--c' + t.c + ')" href="#' + t.id + '">' + ic + (t.wide ? '<span class="tx">' + tx + '</span>' : tx) + '<span class="go">Abrir →</span></a>';
+    }).join("") + "</div></div>";
+  }).join("");
+
+  var PAGES = ["inicio"].concat(TOOLS.map(function(t){ return t.id; }));
+  var TITLES = {}; TOOLS.forEach(function(t){ TITLES[t.id] = t.name; });
+  function route(){
+    var h = (location.hash || "").replace("#", "") || "inicio";
+    if (PAGES.indexOf(h) < 0) h = "inicio";
+    document.querySelectorAll("section.page").forEach(function(s){ s.classList.toggle("on", s.id === "p-" + h); });
+    $("homeBtn").style.display = h === "inicio" ? "none" : "";
+    document.title = (TITLES[h] ? TITLES[h] + " · " : "") + "SQL Toolkit";
+    window.scrollTo(0, 0);
+  }
+  window.addEventListener("hashchange", route);
+  route();
+  function go(id){ location.hash = "#" + id; }
+
+  /* ---------- Leitura de arquivo (UTF-8 / UTF-16) ---------- */
+  function readFileText(file){
+    return file.arrayBuffer().then(function(buf){
+      var u = new Uint8Array(buf), enc = "utf-8";
+      if (u[0] === 0xFF && u[1] === 0xFE) enc = "utf-16le"; else if (u[0] === 0xFE && u[1] === 0xFF) enc = "utf-16be";
+      return new TextDecoder(enc).decode(buf);
+    });
+  }
+  function bindFile(prefix, onLoaded){
+    var ta = $(prefix + "_in"), fi = $(prefix + "_file"), drop = $(prefix + "_drop");
+    function load(f){ if (!f) return; readFileText(f).then(function(t){ ta.value = t; onLoaded(); }, function(){ alert("Não consegui ler o arquivo."); }); }
+    $(prefix + "_open").addEventListener("click", function(){ fi.click(); });
+    fi.addEventListener("change", function(){ load(fi.files[0]); fi.value = ""; });
+    ["dragenter", "dragover"].forEach(function(ev){ drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add("over"); }); });
+    ["dragleave", "drop"].forEach(function(ev){ drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.remove("over"); }); });
+    drop.addEventListener("drop", function(e){ if (e.dataTransfer && e.dataTransfer.files.length) load(e.dataTransfer.files[0]); });
+  }
+
+  /* ---------- Formatador ---------- */
+  function fmtOpts(){
+    return { kw: $("f_kw").value, indent: $("f_ind").value, statementBreaks: +$("f_stm").value, clauseBreaks: +$("f_cls").value,
+      expandCommas: $("f_commas").checked, trailingCommas: $("f_trail").checked, spaceAfterComma: $("f_spc").checked,
+      expandBool: $("f_bool").checked, expandCase: $("f_case").checked, expandBetween: $("f_btw").checked, expandIn: $("f_in2").checked,
+      breakOn: $("f_on").checked, whereNewLine: $("f_wh").checked, standardize: $("f_std").checked };
+  }
+  function showFmt(text){
+    $("f_out").value = text;
+    var c = $("f_color").checked;
+    $("f_hl").hidden = !c; $("f_out").hidden = c;
+    if (c) $("f_hl").innerHTML = highlightSQL(text);
+  }
+  function runFmt(){ if ($("f_in").value.trim() === "") { showFmt(""); return; } showFmt(formatSQL($("f_in").value, fmtOpts())); }
+  $("f_go").addEventListener("click", runFmt);
+  ["f_kw","f_ind","f_stm","f_cls","f_commas","f_trail","f_spc","f_bool","f_case","f_btw","f_in2","f_on","f_wh","f_std","f_color"].forEach(function(id){ $(id).addEventListener("change", runFmt); });
+  $("f_min").addEventListener("click", function(){ showFmt(minifySQL($("f_in").value, true)); });
+  $("f_copy").addEventListener("click", function(){ copyText($("f_out").value, $("f_copy"), "Copiar resultado"); });
+  $("f_ex").addEventListener("click", function(){ $("f_in").value = SAMPLE_SQL; runFmt(); });
+  $("f_clear").addEventListener("click", function(){ $("f_in").value = ""; showFmt(""); });
+
+  /* ---------- Analisador IO/TIME ---------- */
+  var lastStats = null;
+  function insights(r){
+    var out = [], tot = r.totals.logical;
+    if (tot > 0 && r.tables.length){
+      var top = r.tables[0];
+      out.push("<b>" + esc(top.name) + "</b> concentra " + nf1.format(top.logical / tot * 100) + "% das leituras lógicas (" + nf.format(top.logical) + " de " + nf.format(tot) + ").");
+      out.push("Volume lido: cerca de " + nf1.format(tot * 8 / 1024) + " MB (cada leitura lógica é uma página de 8 KB).");
+    }
+    if (r.totals.physical === 0 && r.totals.readAhead === 0 && tot > 0)
+      out.push("Nenhuma leitura física nem read-ahead: os dados já estavam em cache (buffer pool). Com cache frio, os números tendem a ser maiores.");
+    else if (r.totals.physical + r.totals.readAhead > 0)
+      out.push("Houve leitura do disco (físicas: " + nf.format(r.totals.physical) + ", read-ahead: " + nf.format(r.totals.readAhead) + "). A duração pode variar bastante entre execução fria e quente.");
+    if (r.totals.lobLogical > 0) out.push("Há leituras LOB (" + nf.format(r.totals.lobLogical) + "): a query lê colunas grandes (ex.: varchar(max), xml).");
+    var wt = r.tables.filter(function(t){ return /^worktable$/i.test(t.name) && t.logical > 0; });
+    if (wt.length) out.push("A Worktable teve leituras (" + nf.format(wt[0].logical) + "): o plano usou área temporária (por exemplo spool, sort ou hash).");
+    var maxRows = r.rows.length ? Math.max.apply(null, r.rows) : 0;
+    if (r.elapsed > 1000 && r.elapsed > r.cpu * 2){
+      var extra = maxRows > 100000 ? " Foram retornadas " + nf.format(maxRows) + " linhas; entregar e exibir esse volume no cliente costuma pesar no tempo total." : "";
+      out.push("O tempo decorrido (" + fmtMs(r.elapsed) + ") é bem maior que a CPU (" + fmtMs(r.cpu) + "): o restante é tempo de espera (I/O, bloqueios ou o cliente consumindo as linhas)." + extra);
+    } else if (r.cpu > r.elapsed * 1.2 && r.elapsed > 0){
+      out.push("A CPU (" + fmtMs(r.cpu) + ") é maior que o tempo decorrido (" + fmtMs(r.elapsed) + "): sinal de execução em paralelo.");
+    }
+    return out;
+  }
+  function renderStats(){
+    var txt = $("st_in").value, box = $("st_out");
+    if (!txt.trim()){ box.innerHTML = ""; lastStats = null; return; }
+    var r = parseStats(txt); lastStats = r;
+    if (!r.hasData){
+      box.innerHTML = '<p class="err">Não encontrei linhas “Table ...” nem “CPU time”. Cole a saída completa da aba Mensagens (com SET STATISTICS IO, TIME ON). Só reconheço a saída em inglês.</p>';
+      return;
+    }
+    var totalLog = r.totals.logical;
+    var cards = [
+      ["Leituras lógicas", nf.format(totalLog), "≈ " + nf1.format(totalLog * 8 / 1024) + " MB"],
+      ["Tempo de CPU", r.hasTime ? fmtMs(r.cpu) : "n/d", ""],
+      ["Tempo decorrido", r.hasTime ? fmtMs(r.elapsed) : "n/d", ""],
+      ["Compilação (CPU / decorrido)", nf.format(r.compCpu) + " / " + nf.format(r.compEl) + " ms", ""]
+    ];
+    var html = '<div class="grid g4" style="margin-bottom:16px">' + cards.map(function(c){
+      return '<div class="stat"><span>' + esc(c[0]) + '</span><b>' + esc(c[1]) + '</b><span>' + esc(c[2]) + '</span></div>';
+    }).join("") + "</div>";
+    if (r.rows.length) html += '<p class="note" style="margin:0 0 12px">Linhas afetadas/retornadas: ' + r.rows.map(function(n){ return nf.format(n); }).join(" · ") + "</p>";
+    html += '<div class="card"><h2>Por tabela</h2><div class="scroll"><table><thead><tr><th>Tabela</th><th>Scans</th><th>Leituras lógicas</th><th>% do total</th><th>Físicas</th><th>Read-ahead</th><th>LOB lógicas</th></tr></thead><tbody>';
+    r.tables.forEach(function(t){
+      var p = totalLog > 0 ? t.logical / totalLog * 100 : 0;
+      html += "<tr><td>" + esc(t.name) + "</td><td>" + nf.format(t.scan) + "</td><td>" + nf.format(t.logical) + "</td><td>" + nf1.format(p) +
+        '% <span class="pbar"><i style="width:' + Math.min(100, p) + '%"></i></span></td><td>' + nf.format(t.physical) + "</td><td>" + nf.format(t.readAhead) + "</td><td>" + nf.format(t.lobLogical) + "</td></tr>";
+    });
+    html += '<tr><td><b>Total</b></td><td>' + nf.format(r.totals.scan) + "</td><td><b>" + nf.format(totalLog) + "</b></td><td></td><td>" + nf.format(r.totals.physical) + "</td><td>" + nf.format(r.totals.readAhead) + "</td><td>" + nf.format(r.totals.lobLogical) + "</td></tr></tbody></table></div></div>";
+    var ins = insights(r);
+    if (ins.length) html += '<div class="card"><h2>O que isso indica</h2><ul class="ins">' + ins.map(function(s){ return "<li>" + s + "</li>"; }).join("") + "</ul></div>";
+    html += '<div class="actions"><button class="primary" id="useBefore" type="button">Usar como ANTES</button><button class="primary" id="useAfter" type="button">Usar como DEPOIS</button><button class="ghost" id="stCopy" type="button">Copiar resumo</button></div>';
+    box.innerHTML = html;
+    $("useBefore").onclick = function(){ useStats("b"); };
+    $("useAfter").onclick = function(){ useStats("a"); };
+    $("stCopy").onclick = function(){
+      var s = "Leituras lógicas: " + nf.format(totalLog) + " (≈ " + nf1.format(totalLog * 8 / 1024) + " MB)" +
+        (r.hasTime ? "\nCPU: " + fmtMs(r.cpu) + "\nDecorrido: " + fmtMs(r.elapsed) : "") +
+        "\nTabela mais pesada: " + (r.tables[0] ? r.tables[0].name : "n/d");
+      copyText(s, $("stCopy"), "Copiar resumo");
+    };
+  }
+  function useStats(prefix){
+    if (!lastStats) return;
+    $("unidade").value = "ms";
+    $(prefix + "_dur").value = String(lastStats.elapsed);
+    $(prefix + "_cpu").value = String(lastStats.cpu);
+    $(prefix + "_io").value = String(lastStats.totals.logical);
+    go("comparativo");
+  }
+  $("st_go").addEventListener("click", renderStats);
+  $("st_in").addEventListener("input", function(){ clearTimeout(renderStats.t); renderStats.t = setTimeout(renderStats, 300); });
+  $("st_ex").addEventListener("click", function(){ $("st_in").value = SAMPLE_STATS; renderStats(); });
+  $("st_clear").addEventListener("click", function(){ $("st_in").value = ""; renderStats(); });
+
+  /* ---------- Plano de execução ---------- */
+  var SEV_LABEL = { alto: "Alto", medio: "Médio", info: "Info" };
+  function renderPlan(){
+    var txt = $("pl_in").value, box = $("pl_out");
+    if (!txt.trim()){ box.innerHTML = ""; return; }
+    var res;
+    try { res = analyzePlan(txt); } catch (e) { box.innerHTML = '<p class="err">' + esc(e.message) + "</p>"; return; }
+    var h = '<p class="note">' + (res.actual ? "Plano <b>real</b> (com dados de execução)" : "Plano <b>estimado</b> (sem dados de execução)") +
+      (res.version ? " · ShowPlan v" + esc(res.version) : "") + (res.build ? " · build " + esc(res.build) : "") + "</p>";
+    res.statements.forEach(function(s, i){
+      h += '<details class="card" open><summary>Instrução ' + (i + 1) + " · " + esc(s.type || "?") + " · custo estimado " + nf.format(s.cost) + (s.dop > 1 ? " · DOP " + s.dop : "") + '</summary>';
+      h += '<p class="hint" style="margin:8px 0">' + esc(s.text.length > 400 ? s.text.slice(0, 400) + "…" : s.text) + "</p>";
+      if (!s.hasPlan){ h += '<p class="note">Esta instrução não tem plano (por exemplo, um SET ou DECLARE).</p></details>'; return; }
+      var chips = [["Linhas estimadas", nf.format(s.estRows)], ["Compilação", nf.format(s.compileMs) + " ms"], ["Otimização", s.optLevel || "n/d"], ["Modelo de cardinalidade", s.cardModel || "n/d"]];
+      if (s.grant) chips.push(["Memória concedida", nf.format(Math.round(s.grant.granted / 1024)) + " MB"], ["Memória usada", nf.format(Math.round(s.grant.used / 1024)) + " MB"]);
+      h += '<div class="chips">' + chips.map(function(c){ return '<span class="chip">' + esc(c[0]) + ": <b>" + esc(c[1]) + "</b></span>"; }).join("") + "</div>";
+      h += "<h3>Alertas</h3>";
+      if (!s.findings.length) h += '<p class="hint">Nenhum alerta automático encontrado. Isso não garante que o plano esteja bom.</p>';
+      else h += '<ul class="fl">' + s.findings.map(function(f){ return '<li class="f sev-' + f.sev + '"><span class="badge">' + SEV_LABEL[f.sev] + "</span><b>" + esc(f.title) + "</b> — " + esc(f.detail) + "</li>"; }).join("") + "</ul>";
+      if (s.missing.length){
+        h += "<h3>Índices sugeridos pelo otimizador</h3>";
+        s.missing.forEach(function(m){ h += '<pre class="sql">' + esc(m.sql) + "</pre>"; });
+        h += '<p class="note">São sugestões. Avalie duplicidade com índices existentes, custo de manutenção e teste antes de criar.</p>';
+      }
+      if (s.ops.length){
+        var total = s.cost > 0 ? s.cost : s.ops[0].sub;
+        var sorted = s.ops.map(function(o, ix){ return { o: o, ix: ix }; }).sort(function(x, y){ return (y.o.own - x.o.own) || (x.ix - y.ix); });
+        h += '<h3>Operadores por custo (do mais caro para o mais barato)</h3><div class="scroll"><table class="tree"><thead><tr><th>#</th><th class="l">Operador</th><th>Nó</th><th class="l">Objeto</th><th>Linhas est.</th><th>Linhas reais</th><th>Custo próprio</th></tr></thead><tbody>';
+        sorted.slice(0, 250).forEach(function(x, rk){
+          var o = x.o, pct = total > 0 ? o.own / total * 100 : 0;
+          h += "<tr><td>" + (rk + 1) + '</td><td class="l">' + esc(o.phys) + (o.lookup ? " (lookup)" : "") + (o.warnings.length ? ' <span class="badge" style="background:var(--bad-bg)">alerta</span>' : "") +
+            "</td><td>" + esc(o.id) + '</td><td class="l">' + esc(objName(o.obj)) + "</td><td>" + nf.format(o.estRows) + "</td><td>" + (o.rt ? nf.format(o.rt.rows) : "—") +
+            '</td><td><span class="own" style="width:' + Math.min(60, pct * 0.6) + 'px"></span>' + nf1.format(pct) + "%</td></tr>";
+        });
+        h += "</tbody></table></div>";
+        if (s.ops.length > 250) h += '<p class="note">Mostrando os 250 mais caros de ' + s.ops.length + " operadores.</p>";
+        h += '<p class="note">O custo próprio é aproximado: custo do operador menos o custo dos filhos, em unidades do otimizador.</p>';
+      }
+      if (s.params.length){
+        h += '<h3>Parâmetros</h3><div class="scroll"><table><thead><tr><th>Nome</th><th class="l">Tipo</th><th class="l">Valor de compilação</th><th class="l">Valor de execução</th></tr></thead><tbody>' +
+          s.params.map(function(p){ return "<tr><td>" + esc(p.name) + '</td><td class="l">' + esc(p.type) + '</td><td class="l">' + esc(p.compiled || "—") + '</td><td class="l">' + esc(p.runtime || "—") + "</td></tr>"; }).join("") + "</tbody></table></div>";
+      }
+      h += "</details>";
+    });
+    box.innerHTML = h;
+  }
+  $("pl_go").addEventListener("click", renderPlan);
+  $("pl_ex").addEventListener("click", function(){ $("pl_in").value = SAMPLE_PLAN; renderPlan(); });
+  $("pl_clear").addEventListener("click", function(){ $("pl_in").value = ""; $("pl_out").innerHTML = ""; });
+  bindFile("pl", renderPlan);
+
+  /* ---------- Deadlock ---------- */
+  function renderDeadlock(){
+    var txt = $("dl_in").value, box = $("dl_out");
+    if (!txt.trim()){ box.innerHTML = ""; return; }
+    var list;
+    try { list = parseDeadlock(txt); } catch (e) { box.innerHTML = '<p class="err">' + esc(e.message) + "</p>"; return; }
+    var h = "";
+    list.forEach(function(d, di){
+      var ex = explainDeadlock(d);
+      var pmap = {}; d.processes.forEach(function(p){ pmap[p.id] = p; });
+      h += '<div class="card"><h2>Deadlock ' + (list.length > 1 ? (di + 1) : "") + " — resumo</h2>";
+      h += "<h3>Quem foi a vítima</h3>" + (ex.victims.length ? "<ul class=\"ins\">" + ex.victims.map(function(v){ return "<li>" + esc(v) + "</li>"; }).join("") + "</ul>" : '<p class="hint">Vítima não informada no XML.</p>');
+      if (ex.edges.length) h += "<h3>Quem esperava por quem</h3><ul class=\"ins\">" + ex.edges.map(function(v){ return "<li>" + esc(v) + "</li>"; }).join("") + "</ul>";
+      h += "<h3>Por que aconteceu</h3><ul class=\"ins\">" + ex.why.concat(ex.hints).map(function(v){ return "<li>" + esc(v) + "</li>"; }).join("") + "</ul>";
+      h += '<p class="note">Estas leituras são pistas gerais, não um diagnóstico: confirme olhando o código e o plano das consultas.</p>';
+      h += "<h3>Ideias gerais para evitar</h3><ul class=\"ins\">" + ex.generic.map(function(v){ return "<li>" + esc(v) + "</li>"; }).join("") + "</ul></div>";
+
+      h += '<div class="card"><h2>Objetos (recursos) envolvidos</h2><div class="scroll"><table><thead><tr><th class="l">Tipo</th><th class="l">Objeto</th><th class="l">Índice</th><th class="l">Dono (modo)</th><th class="l">Esperando (modo)</th></tr></thead><tbody>' +
+        d.resources.map(function(r){
+          var own = r.owners.map(function(o){ var p = pmap[o.id]; return "SPID " + (p ? p.spid : o.id) + " (" + o.mode + ")"; }).join(", ");
+          var wt = r.waiters.map(function(o){ var p = pmap[o.id]; return "SPID " + (p ? p.spid : o.id) + " (" + o.mode + ")"; }).join(", ");
+          return '<tr><td class="l">' + esc(typeName(r.type)) + '</td><td class="l">' + esc(r.object || "—") + '</td><td class="l">' + esc(r.index || "—") + '</td><td class="l">' + esc(own || "—") + '</td><td class="l">' + esc(wt || "—") + "</td></tr>";
+        }).join("") + "</tbody></table></div>";
+      h += '<p class="note">Modos: S = leitura compartilhada, X = escrita exclusiva, U = atualização, IS/IX = intenção.</p></div>';
+
+      h += '<div class="grid g2">' + d.processes.map(function(p){
+        var isV = d.victims.indexOf(p.id) >= 0;
+        var sqlTxt = p.frames.map(function(f){ return (f.proc ? "-- " + f.proc + (f.line ? " (linha " + f.line + ")" : "") + "\n" : "") + f.text; }).join("\n\n");
+        return '<div class="card"><h2>' + (isV ? "Vítima · " : "") + "SPID " + esc(p.spid) + '</h2><div class="chips">' +
+          [["Login", p.login], ["Máquina", p.host], ["Aplicação", p.app], ["Banco", p.db], ["Isolamento", p.isolation], ["Transações abertas", p.trancount], ["Espera", p.waitTime ? nf.format(p.waitTime) + " ms" : ""], ["Recurso esperado", p.waitResource]]
+            .filter(function(c){ return c[1]; }).map(function(c){ return '<span class="chip">' + esc(c[0]) + ": <b>" + esc(c[1]) + "</b></span>"; }).join("") + "</div>" +
+          (sqlTxt ? "<h3>Comando em execução</h3><pre class=\"sql\">" + esc(sqlTxt) + "</pre>" : "") +
+          (p.input ? "<h3>Chamada original (inputbuf)</h3><pre class=\"sql\">" + esc(p.input) + "</pre>" : "") + "</div>";
+      }).join("") + "</div>";
+    });
+    box.innerHTML = h;
+  }
+  $("dl_go").addEventListener("click", renderDeadlock);
+  $("dl_ex").addEventListener("click", function(){ $("dl_in").value = SAMPLE_DEADLOCK; renderDeadlock(); });
+  $("dl_clear").addEventListener("click", function(){ $("dl_in").value = ""; $("dl_out").innerHTML = ""; });
+  bindFile("dl", renderDeadlock);
+
+  /* ---------- Desparametrizador ---------- */
+  function runUp(){
+    $("up_err").textContent = "";
+    try {
+      var r = unparameterize($("up_in").value);
+      var sql = r.sql;
+      if ($("up_fmt").checked) sql = r.declares.join("\n") + (r.declares.length ? "\n\n" : "") + formatSQL(r.query, {});
+      $("up_out").value = sql.replace(/\s+$/, "") + "\n";
+      if (r.notes.length) $("up_err").textContent = r.notes.join(" ");
+    } catch (e) { $("up_out").value = ""; $("up_err").textContent = e.message; }
+  }
+  $("up_go").addEventListener("click", runUp);
+  $("up_fmt").addEventListener("change", function(){ if ($("up_in").value.trim()) runUp(); });
+  $("up_copy").addEventListener("click", function(){ copyText($("up_out").value, $("up_copy"), "Copiar resultado"); });
+  $("up_ex").addEventListener("click", function(){ $("up_in").value = SAMPLE_SP; runUp(); });
+  $("up_clear").addEventListener("click", function(){ $("up_in").value = ""; $("up_out").value = ""; $("up_err").textContent = ""; });
+
+  /* ---------- Anonimizador ---------- */
+  function runAn(){
+    var r = anonymizeSQL($("an_in").value, {
+      idents: $("an_idents").checked, vars: $("an_vars").checked, strings: $("an_strings").checked,
+      numbers: $("an_nums").checked, comments: $("an_comments").checked, keepDbo: $("an_dbo").checked
+    });
+    $("an_out").value = $("an_fmt").checked ? formatSQL(r.text, {}) : r.text;
+    var wrap = $("an_map_wrap");
+    if (r.mapping.length){
+      wrap.style.display = "";
+      $("an_map").innerHTML = '<thead><tr><th>Original</th><th class="l">Anonimizado</th></tr></thead><tbody>' + r.mapping.map(function(m){ return "<tr><td>" + esc(m[0]) + '</td><td class="l">' + esc(m[1]) + "</td></tr>"; }).join("") + "</tbody>";
+    } else wrap.style.display = "none";
+  }
+  $("an_go").addEventListener("click", runAn);
+  $("an_copy").addEventListener("click", function(){ copyText($("an_out").value, $("an_copy"), "Copiar resultado"); });
+  $("an_ex").addEventListener("click", function(){ $("an_in").value = "SELECT c.FullName, c.Email, SUM(p.Amount) AS Total\nFROM Sales.dbo.Customers c\nJOIN Sales.dbo.Invoices p ON p.CustomerId = c.Id\nWHERE c.City = 'Sample City' AND p.IssuedOn >= '2026-01-01' -- only branch customers\nGROUP BY c.FullName, c.Email;"; runAn(); });
+  $("an_clear").addEventListener("click", function(){ $("an_in").value = ""; $("an_out").value = ""; $("an_map_wrap").style.display = "none"; });
+
+  /* ---------- Comparativo ---------- */
+  var metrics = [
+    { key: "dur", nome: "Duração total", pt: "Duração", time: true },
+    { key: "cpu", nome: "Tempo de CPU", pt: "CPU", time: true },
+    { key: "io",  nome: "Leituras lógicas", pt: "Leituras lógicas", time: false }
+  ];
+  var cmpB = null, cmpA = null;
+  function read(id){ var raw = $(id).value.trim().replace(",", "."); return raw === "" ? NaN : Number(raw); }
+  function fmt(v, m, u){ return nf.format(v) + (m.time ? " " + u : ""); }
+  function compute(b, a){
+    if (!(b > 0)) return { pct: null, fator: null };
+    return { pct: (b - a) / b * 100, fator: a > 0 ? b / a : Infinity };
+  }
+  function pctText(r){ return r.pct === null ? "n/d" : (r.pct > 0 ? "−" : r.pct < 0 ? "+" : "") + nf.format(Math.abs(r.pct)) + "%"; }
+  function fatorText(r){ return r.fator === null ? "" : (r.fator === Infinity ? "∞x" : nf.format(r.fator) + "x"); }
+
+  $("cp_fill").addEventListener("click", function(){
+    var err = $("cp_fill_err"); err.textContent = "";
+    var bt = $("cp_b_txt").value, at = $("cp_a_txt").value, any = false;
+    function fill(prefix, txt){
+      if (!txt.trim()) return null;
+      var r = parseStats(txt);
+      if (!r.hasData){ err.textContent = "Não reconheci a saída colada (" + (prefix === "b" ? "ANTES" : "DEPOIS") + "). Use a saída em inglês do STATISTICS IO/TIME."; return null; }
+      $("unidade").value = "ms";
+      $(prefix + "_dur").value = String(r.elapsed); $(prefix + "_cpu").value = String(r.cpu); $(prefix + "_io").value = String(r.totals.logical);
+      any = true; return r;
+    }
+    cmpB = fill("b", bt); cmpA = fill("a", at);
+    if (!any && !err.textContent) err.textContent = "Cole ao menos uma das saídas.";
+  });
+
+  function runCmp(){
+    var err = $("err"); err.textContent = "";
+    var u = $("unidade").value, data = [];
+    for (var i = 0; i < metrics.length; i++){
+      var m = metrics[i], b = read("b_" + m.key), a = read("a_" + m.key);
+      if (isNaN(b) || isNaN(a)){ err.textContent = "Preencha todos os campos (antes e depois)."; return; }
+      if (b < 0 || a < 0){ err.textContent = "Os valores não podem ser negativos."; return; }
+      data.push({ m: m, b: b, a: a, r: compute(b, a) });
+    }
+    var nome = $("nome").value.trim();
+    $("rtitle").textContent = nome ? "Resultado — " + nome : "Resultado";
+    $("metrics").innerHTML = data.map(function(d){
+      var max = Math.max(d.b, d.a) || 1;
+      var cls = d.r.pct === null ? "neutral" : d.r.pct > 0 ? "good" : d.r.pct < 0 ? "bad" : "neutral";
+      var label = d.r.pct === null ? "sem base de comparação" : d.r.pct > 0 ? "melhorou" : d.r.pct < 0 ? "piorou" : "sem mudança";
+      return '<div class="metric"><div class="mhead"><span class="mname">' + d.m.nome + '</span><span class="pct ' + cls + '">' + pctText(d.r) +
+        ' <small style="font-size:.8rem;font-weight:500;color:var(--muted)">' + fatorText(d.r) + " · " + label + "</small></span></div>" +
+        '<div class="vals"><span>Antes</span><span>' + fmt(d.b, d.m, u) + '</span></div><div class="bar b"><span style="width:' + (d.b / max * 100) + '%"></span></div>' +
+        '<div class="vals"><span>Depois</span><span>' + fmt(d.a, d.m, u) + '</span></div><div class="bar a"><span style="width:' + (d.a / max * 100) + '%"></span></div></div>';
+    }).join("");
+
+    var tb = "";
+    if (cmpB && cmpA){
+      var names = [], mb = {}, ma = {};
+      cmpB.tables.forEach(function(t){ mb[t.name] = t; names.push(t.name); });
+      cmpA.tables.forEach(function(t){ ma[t.name] = t; if (!mb[t.name]) names.push(t.name); });
+      tb = '<h2 style="margin-top:20px">Leituras lógicas por tabela</h2><div class="scroll"><table><thead><tr><th>Tabela</th><th>Antes</th><th>Depois</th><th>Variação</th></tr></thead><tbody>' +
+        names.map(function(n){
+          var b = mb[n] ? mb[n].logical : 0, a = ma[n] ? ma[n].logical : 0, r = compute(b, a);
+          return "<tr><td>" + esc(n) + "</td><td>" + (mb[n] ? nf.format(b) : "—") + "</td><td>" + (ma[n] ? nf.format(a) : "—") + "</td><td>" + (mb[n] && ma[n] ? pctText(r) : "—") + "</td></tr>";
+        }).join("") + "</tbody></table></div>";
+    }
+    $("cmpTables").innerHTML = tb;
+
+    $("resumo").textContent = "Resultado do tuning" + (nome ? " — " + nome : "") + "\n" +
+      data.map(function(d){ return "• " + d.m.pt + ": " + fmt(d.b, d.m, u) + " → " + fmt(d.a, d.m, u) + " (" + pctText(d.r) + ")"; }).join("\n");
+    $("cmpResult").style.display = "block";
+    $("cmpResult").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  $("calc").addEventListener("click", runCmp);
+  $("p-comparativo").addEventListener("keydown", function(e){ if (e.key === "Enter" && e.target.tagName === "INPUT"){ e.preventDefault(); runCmp(); } });
+  $("limpar").addEventListener("click", function(){
+    document.querySelectorAll("#p-comparativo input").forEach(function(i){ i.value = ""; });
+    document.querySelectorAll("#p-comparativo textarea").forEach(function(i){ i.value = ""; });
+    cmpB = cmpA = null;
+    $("err").textContent = ""; $("cp_fill_err").textContent = ""; $("cmpResult").style.display = "none";
+  });
+  $("copiar").addEventListener("click", function(){ copyText($("resumo").textContent, $("copiar"), "Copiar resumo"); });
+})();
+</script>
+</body>
+</html>
